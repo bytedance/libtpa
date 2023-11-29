@@ -74,6 +74,10 @@ static struct nic_spec nic_spec_list[] = {
 
 		/* IAVF just has 14 bits for desc len */
 		.write_chunk_size = (1<<14) - 1,
+	}, {
+		.name = "net_af_xdp",
+		.type = NIC_TYPE_AF_XDP,
+		.rx_burst_cap = 64,
 	},
 };
 
@@ -327,7 +331,8 @@ static uint32_t translate_caps(uint64_t dpdk_offloads, int nic_type)
 	} else if (nic_type == NIC_TYPE_IAVF) {
 		ret |= RX_OFFLOAD_PACKET_TYPE;
 		ret |= FLOW_OFFLOAD;
-	}
+	} if (nic_type == NIC_TYPE_AF_XDP)
+		ret |= FLOW_OFFLOAD;
 
 	return ret;
 }
