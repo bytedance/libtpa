@@ -368,7 +368,7 @@ static int tsock_init(struct tcp_sock *tsock, int sid, const struct tpa_sock_opt
 	__sync_fetch_and_add_4(&worker->nr_tsock, 1);
 	__sync_fetch_and_add_8(&worker->nr_tsock_total, 1);
 
-	tsock->tso_enabled  = tcp_cfg.enable_tso;
+	tsock->tso_enabled  = tcp_cfg.enable_tso && (dev.caps & TX_OFFLOAD_TSO);
 	tsock->ts_enabled   = tcp_cfg.enable_ts;
 	tsock->ws_enabled   = tcp_cfg.enable_ws;
 	tsock->sack_enabled = tcp_cfg.enable_sack;
