@@ -13,6 +13,10 @@ ifneq ($(DISABLE_TEST),yes)
 SUBDIRS += test
 endif
 
+ifeq ($(WITH_XDP), yes)
+SUBDIRS += bpf
+endif
+
 .PHONY: all install clean distclean $(SUBDIRS) dpdk gtags scan-build so summary
 
 all: summary $(SUBDIRS)
@@ -59,6 +63,9 @@ install: $(SUBDIRS) $(LIBTPA_A)
 	$(Q)install $(BIN_ROOT)/app/*             $(INSTALL_ROOT)
 	$(Q)install $(BIN_ROOT)/tpad/*            $(INSTALL_ROOT)
 	$(Q)install $(BIN_ROOT)/tools/*           $(INSTALL_ROOT)
+ifeq ($(WITH_XDP), yes)
+	$(Q)install $(OBJ_ROOT)/bpf/*.o		  $(INSTALL_ROOT)
+endif
 	$(Q)install $(SRC_ROOT)/include/api/*     $(INSTALL_ROOT)
 	$(Q)install $(BIN_ROOT)/tools/tpa         /usr/bin
 	$(Q)install $(BIN_ROOT)/app/*             /usr/bin
