@@ -40,6 +40,10 @@ SRCS += arp.c
 SRCS += ndp.c
 SRCS += eth.c
 
+ifeq ($(WITH_XDP), yes)
+SRCS += xdp_ctrl.c
+endif
+
 VPATH += ./tcp
 SRCS += tcp_input.c
 SRCS += tcp_output.c

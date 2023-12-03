@@ -18,6 +18,7 @@
 #include "dev.h"
 #include "ip.h"
 #include "ctrl.h"
+#include "xdp_ctrl.h"
 
 struct net_dev dev;
 
@@ -280,6 +281,11 @@ static int dev_port_init(void)
 		if (bonding_init() < 0)
 			return -1;
 	}
+
+#ifdef WITH_XDP
+	if (dev.nr_port > 0 && dev.nic == NIC_TYPE_AF_XDP && xdp_ctrl_init() < 0)
+		return -1;
+#endif
 
 	return 0;
 }

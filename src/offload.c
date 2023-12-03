@@ -16,6 +16,7 @@
 #include "worker.h"
 #include "cfg.h"
 #include "offload.h"
+#include "xdp_ctrl.h"
 
 /*
  * XXX: note that we do not support ip fragments.
@@ -465,9 +466,15 @@ static struct rte_flow *flow_create(struct offload_ctx *ctx, int port)
 	dump_flow(ctx, port);
 
 	pthread_mutex_lock(&dev.mutex);
-	flow = rte_flow_create(port, &ctx->attr, ctx->patterns.items,
-			       ctx->actions.actions, &ctx->error);
+	if (dev.nic == NIC_TYPE_AF_XDP) {
+		flow = xdp_flow_create(port, &ctx->attr, ctx->patterns.items,
+				       ctx->actions.actions, &ctx->error);
+	} else {
+		flow = rte_flow_create(port, &ctx->attr, ctx->patterns.items,
+				       ctx->actions.actions, &ctx->error);
+	}
 	pthread_mutex_unlock(&dev.mutex);
+
 	if (!flow) {
 		LOG_ERR("failed to create rte flow: %d, %s on port %d",
 			ctx->error.type, ctx->error.message, port);
@@ -585,7 +592,10 @@ static int offload_destroy(struct offload_list *list)
 		next = TAILQ_NEXT(offload, node);
 
 		pthread_mutex_lock(&dev.mutex);
-		ret = rte_flow_destroy(offload->port, offload->flow, &error);
+		if (dev.nic == NIC_TYPE_AF_XDP)
+			ret = xdp_flow_destroy(offload->port, offload->flow, &error);
+		else
+			ret = rte_flow_destroy(offload->port, offload->flow, &error);
 		pthread_mutex_unlock(&dev.mutex);
 
 		if (ret != 0) {

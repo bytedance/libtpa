@@ -13,6 +13,7 @@
 
 #include "log.h"
 #include "tpad.h"
+#include "xdp_ctrl.h"
 
 struct tpad tpad;
 
@@ -107,6 +108,9 @@ int main(int argc, char **argv)
 	if (wait_for_tpa_app(fd) == 0) {
 		sock_termination();
 		sock_archive();
+	#ifdef WITH_XDP
+		xdp_prog_detach(tpad.eth_dev);
+	#endif
 	}
 
 	LOG("tpad %s %d quits", tpad.name, getpid());
