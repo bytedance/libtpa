@@ -15,6 +15,7 @@ STATS(ERR_PKT_ALLOC_FAIL, "failed to allocate packet")
 STATS(ERR_PKT_PREPEND_HDR, "failed to prepend protocol header")
 STATS(ERR_PKT_INVALID_LEN, "invalid packet length")
 STATS(ERR_PKT_INVALID_TYPE, "not the packet type we can handle")
+STATS(ERR_PKT_LINEARIZE, "failed to linearize packet")
 
 STATS(ERR_BAD_CSUM_IPV4, "ipv4 checksum error")
 STATS(ERR_BAD_CSUM_TCP,  "tcp checksum error")

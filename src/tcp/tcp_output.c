@@ -630,6 +630,17 @@ static inline int xmit_one_packet(struct tpa_worker *worker, struct tcp_sock *ts
 	if (unlikely(size == 0))
 		goto error;
 
+#ifdef WITH_XDP
+	if (!(dev.caps & TX_OFFLOAD_MULTI_SEG)) {
+		pkt = packet_linearize(hdr_pkt, generic_pkt_pool);
+		if (!pkt) {
+			err = -ERR_PKT_LINEARIZE;
+			goto error;
+		}
+		hdr_pkt = pkt;
+	}
+#endif
+
 	err = prepend_tcp_hdr(tsock, hdr_pkt, ctx->seq - size, TCP_FLAG_ACK);
 	if (unlikely(err))
 		goto error;

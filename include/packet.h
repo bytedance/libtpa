@@ -328,4 +328,38 @@ extern struct packet_pool *generic_pkt_pool;
 int packet_pool_create(struct packet_pool *pool, double percent,
 		       uint32_t mbuf_size, const char *fmt, ...);
 
+static inline struct packet *packet_linearize(struct packet *pkt, struct packet_pool *pool)
+{
+	struct rte_mbuf *mbuf = &pkt->mbuf;
+	struct packet *ret;
+	char *addr;
+	uint64_t len;
+
+	if (pkt->mbuf.nb_segs <= 1)
+		return pkt;
+
+	ret = packet_alloc(pool);
+	if (!ret)
+		return NULL;
+
+	do {
+		len = rte_pktmbuf_data_len(mbuf);
+		if (len > 0) {
+			addr = rte_pktmbuf_append(&ret->mbuf, len);
+			if (!addr) {
+				packet_free(ret);
+				return NULL;
+			}
+
+			memcpy(addr, (char *)mbuf->buf_addr + mbuf->data_off, len);
+		}
+
+		mbuf = mbuf->next;
+	} while (mbuf != NULL);
+
+	packet_free(pkt);
+
+	return ret;
+}
+
 #endif
