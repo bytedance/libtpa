@@ -43,7 +43,7 @@ struct cfg_spec {
 	int (*get)(struct cfg_spec *spec, char *val);
 };
 
-#define NAME_SIZE		128
+#define NAME_SIZE		256
 struct cfg_opt {
 	char name[NAME_SIZE];
 	char val[NAME_SIZE];
