@@ -1,0 +1,9 @@
+default_params:
+  nr_thread: 1
+  test: rw
+  size: 4KB
+
+  depth: 128
+end
+
+echo "from test-common"

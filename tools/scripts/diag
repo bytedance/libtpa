@@ -1,0 +1,139 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2022, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+detailed_log_file="tpa-diag.log"
+(date; echo) > $detailed_log_file
+
+stats_file=$(mktemp)
+trap "rm $stats_file" EXIT
+
+log()
+{
+	echo "$*" | tee -a $detailed_log_file
+}
+
+log_nl()
+{
+	log "$*"
+	log
+}
+
+log_error()
+{
+	log ":: error: $*"
+}
+
+capture_stats()
+{
+	last_stats="$@"
+	$@ > $stats_file
+}
+
+cat_stats()
+{
+	cat $stats_file
+}
+
+store_stats()
+{
+	(echo "# $last_stats"; cat $stats_file; echo) >> $detailed_log_file
+}
+
+check_version()
+{
+	capture_stats 'tpa -v'
+
+	[ "$(cat_stats | awk '{print $2}')" = "-" ] && log_error "no live libtpa instance detected"
+
+	store_stats
+}
+
+dump_uptime()
+{
+	capture_stats 'tpa uptime'
+	store_stats
+}
+
+normalize_time()
+{
+	time=$1
+	factor=1
+
+	if [[ "$time" =~ us ]]; then
+		factor=1000000
+	elif [[ "$time" =~ ms ]]; then
+		factor=1000
+	fi
+
+	echo "$(echo $time | tr -d 'ums') / $factor" | bc
+}
+
+check_worker()
+{
+	capture_stats 'tpa worker'
+	cat_stats | grep -q -E '(RTO|OOO)' && log_error "retrans timeout or pkt loss detected; we may have link issues" &&
+					      log_nl "$(cat_stats | grep -E '(^worker|RTO|OOO)')"
+
+	wid=0
+	for max_starvation in $(cat_stats | grep max_starvation | awk '{print $3}'); do
+		max_starvation=$(normalize_time $max_starvation)
+		[ $max_starvation -ge 1 ] && log_error "worker $wid: long starvation detected: ${max_starvation}s"
+		let wid+=1
+	done
+
+	wid=0
+	for max_runtime in $(cat_stats | grep max_runtime | awk '{print $3}'); do
+		max_runtime=$(normalize_time $max_runtime)
+		[ $max_runtime -ge 1 ] && log_error "worker $wid: long stuck detected: ${max_runtime}s"
+		let wid+=1
+	done
+
+	wid=0
+	for last_run in $(cat_stats | grep last_run | awk '{print $3}'); do
+		last_run=$(normalize_time $last_run)
+		[ $last_run -ge 1 ] && log_error "worker $wid: hang detected: last_run=${last_run}s ago"
+		let wid+=1
+	done
+
+	store_stats
+}
+
+check_sock()
+{
+	capture_stats 'tpa sk'
+	cat_stats | grep -v -E "(listen|established)" && log_error "non established socks detected" &&
+							 log_nl "$(cat_stats)"
+
+	capture_stats 'tpa sk -v'
+	cat_stats | grep -q OOO && log_nl "$(cat_stats | grep -E '(^sid|OOO)' | grep -B 1 OOO)"
+	cat_stats | grep -q RTO && log_nl "$(cat_stats | grep -E '(^sid|RTO)' | grep -B 1 RTO)"
+
+	store_stats
+}
+
+check_mem_stats()
+{
+	# TODO: check memory usage
+	capture_stats 'tpa mem-stats'
+	store_stats
+}
+
+diag()
+{
+	check_version
+	dump_uptime
+	check_worker
+	check_sock
+	check_mem_stats
+
+	if grep -q error "$detailed_log_file"; then
+		echo ":: abnormal status detected; check $detailed_log_file for more detailed log" | grep . --color=always
+	else
+		echo "all look good"
+	fi
+}
+
+diag

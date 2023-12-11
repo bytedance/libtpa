@@ -1,0 +1,52 @@
+#!/usr/bin/ruby
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+require 'fileutils'
+require 'optparse'
+
+require "#{__dir__}/matrix-shell.rb"
+
+$exit_on_fail = false
+$grep = nil
+$vars = [ ]
+
+opt_parser = OptionParser.new do |opts|
+	opts.banner = 'Usage: run [options] ms-file'
+
+	opts.separator ''
+	opts.separator 'options:'
+
+	opts.on('-e', '--exit', 'exit if a shell fails to execute') {
+		$exit_on_fail = true
+	}
+
+	opts.on('-g pattern', '--grep pattern', 'only run those match the given pattern') { |pattern|
+		$grep = Regexp.new pattern
+	}
+
+	opts.on('--var var', 'specify user defined params') { |var|
+		$vars.push var
+	}
+
+	opts.on_tail('-h', '--help', 'show this message') {
+		puts opts
+		exit
+	}
+end
+
+opt_parser.parse!(ARGV)
+if not ARGV[0]
+	STDERR.puts opt_parser
+	exit 1
+end
+
+MatrixShell.new(ARGV[0]).each_matched($grep) { |shell|
+	shell.append_user_defined_param $vars
+
+	if not shell.exec
+		exit 1 if $exit_on_fail
+	end
+}

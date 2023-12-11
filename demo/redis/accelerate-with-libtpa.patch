@@ -1,0 +1,1283 @@
+From e41aa70c201fc3ac37b5018cdc4eabe364e69e67 Mon Sep 17 00:00:00 2001
+From: Wenlong Luo <luowenlong.linl@bytedance.com>
+Date: Thu, 7 Dec 2023 18:41:04 +0800
+Subject: [PATCH] redis: accelerate with libtpa
+
+Note that this is a very hacky integration, just for demonstrating the
+performance boost with libtpa.
+
+You should not deploy it online!
+
+Signed-off-by: Wenlong Luo <luowenlong.linl@bytedance.com>
+Signed-off-by: Tao Liu <liutao.xyz@bytedance.com>
+---
+ src/Makefile          |   7 +-
+ src/ae.c              |  33 +--
+ src/ae.h              |  13 ++
+ src/ae_tpa_epoll.c | 167 +++++++++++++++
+ src/anet_tpa.c     | 574 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/connection.c      | 192 ++++++++++++++++-
+ src/connection.h      |   1 +
+ src/networking.c      |   2 +-
+ src/server.c          |  58 ++++-
+ src/server.h          |   1 +
+ 10 files changed, 1027 insertions(+), 21 deletions(-)
+ create mode 100644 src/ae_tpa_epoll.c
+ create mode 100644 src/anet_tpa.c
+
+diff --git a/src/Makefile b/src/Makefile
+index 2a0d74d8..711a1da8 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -267,6 +267,9 @@ ifeq ($(MALLOC),jemalloc)
+ 	FINAL_LIBS := ../deps/jemalloc/lib/libjemalloc.a $(FINAL_LIBS)
+ endif
+ 
++FINAL_CFLAGS+=$(shell $(PKG_CONFIG) --cflags libtpa)
++FINAL_LDFLAGS+=$(shell $(PKG_CONFIG) --libs --static libtpa)
++
+ ifeq ($(BUILD_TLS),yes)
+ 	FINAL_CFLAGS+=-DUSE_OPENSSL $(OPENSSL_CFLAGS)
+ 	FINAL_LDFLAGS+=$(OPENSSL_LDFLAGS)
+@@ -316,9 +319,9 @@ endif
+ 
+ REDIS_SERVER_NAME=redis-server$(PROG_SUFFIX)
+ REDIS_SENTINEL_NAME=redis-sentinel$(PROG_SUFFIX)
+-REDIS_SERVER_OBJ=adlist.o quicklist.o ae.o anet.o dict.o server.o sds.o zmalloc.o lzf_c.o lzf_d.o pqsort.o zipmap.o sha1.o ziplist.o release.o networking.o util.o object.o db.o replication.o rdb.o t_string.o t_list.o t_set.o t_zset.o t_hash.o config.o aof.o pubsub.o multi.o debug.o sort.o intset.o syncio.o cluster.o crc16.o endianconv.o slowlog.o eval.o bio.o rio.o rand.o memtest.o crcspeed.o crc64.o bitops.o sentinel.o notify.o setproctitle.o blocked.o hyperloglog.o latency.o sparkline.o redis-check-rdb.o redis-check-aof.o geo.o lazyfree.o module.o evict.o expire.o geohash.o geohash_helper.o childinfo.o defrag.o siphash.o rax.o t_stream.o listpack.o localtime.o lolwut.o lolwut5.o lolwut6.o acl.o tracking.o connection.o tls.o sha256.o timeout.o setcpuaffinity.o monotonic.o mt19937-64.o resp_parser.o call_reply.o script_lua.o script.o functions.o function_lua.o commands.o
++REDIS_SERVER_OBJ=adlist.o quicklist.o ae.o anet_tpa.o dict.o server.o sds.o zmalloc.o lzf_c.o lzf_d.o pqsort.o zipmap.o sha1.o ziplist.o release.o networking.o util.o object.o db.o replication.o rdb.o t_string.o t_list.o t_set.o t_zset.o t_hash.o config.o aof.o pubsub.o multi.o debug.o sort.o intset.o syncio.o cluster.o crc16.o endianconv.o slowlog.o eval.o bio.o rio.o rand.o memtest.o crcspeed.o crc64.o bitops.o sentinel.o notify.o setproctitle.o blocked.o hyperloglog.o latency.o sparkline.o redis-check-rdb.o redis-check-aof.o geo.o lazyfree.o module.o evict.o expire.o geohash.o geohash_helper.o childinfo.o defrag.o siphash.o rax.o t_stream.o listpack.o localtime.o lolwut.o lolwut5.o lolwut6.o acl.o tracking.o connection.o tls.o sha256.o timeout.o setcpuaffinity.o monotonic.o mt19937-64.o resp_parser.o call_reply.o script_lua.o script.o functions.o function_lua.o commands.o
+ REDIS_CLI_NAME=redis-cli$(PROG_SUFFIX)
+-REDIS_CLI_OBJ=anet.o adlist.o dict.o redis-cli.o zmalloc.o release.o ae.o redisassert.o crcspeed.o crc64.o siphash.o crc16.o monotonic.o cli_common.o mt19937-64.o
++REDIS_CLI_OBJ=anet_tpa.o adlist.o dict.o redis-cli.o zmalloc.o release.o ae.o redisassert.o crcspeed.o crc64.o siphash.o crc16.o monotonic.o cli_common.o mt19937-64.o
+ REDIS_BENCHMARK_NAME=redis-benchmark$(PROG_SUFFIX)
+ REDIS_BENCHMARK_OBJ=ae.o anet.o redis-benchmark.o adlist.o dict.o zmalloc.o redisassert.o release.o crcspeed.o crc64.o siphash.o crc16.o monotonic.o cli_common.o mt19937-64.o
+ REDIS_CHECK_RDB_NAME=redis-check-rdb$(PROG_SUFFIX)
+diff --git a/src/ae.c b/src/ae.c
+index b05cf563..c6dd8835 100644
+--- a/src/ae.c
++++ b/src/ae.c
+@@ -47,21 +47,9 @@
+ #include "zmalloc.h"
+ #include "config.h"
+ 
+-/* Include the best multiplexing layer supported by this system.
+- * The following should be ordered by performances, descending. */
+-#ifdef HAVE_EVPORT
+-#include "ae_evport.c"
+-#else
+-    #ifdef HAVE_EPOLL
+-    #include "ae_epoll.c"
+-    #else
+-        #ifdef HAVE_KQUEUE
+-        #include "ae_kqueue.c"
+-        #else
+-        #include "ae_select.c"
+-        #endif
+-    #endif
+-#endif
++
++#include "ae_tpa_epoll.c"
++
+ 
+ 
+ aeEventLoop *aeCreateEventLoop(int setsize) {
+@@ -491,11 +479,24 @@ int aeWait(int fd, int mask, long long milliseconds) {
+ }
+ 
+ void aeMain(aeEventLoop *eventLoop) {
++    struct timeval last;
++    struct timeval now;
++
+     eventLoop->stop = 0;
++    gettimeofday(&last, NULL);
++
+     while (!eventLoop->stop) {
++        tpa_worker_run(worker);
++
++        gettimeofday(&now, NULL);
++        eventLoop->doServerCron(&last, &now, NULL, 0, NULL);
++
++        eventLoop->doLibtpaAccept(worker);
++
++        // check module_pipe
+         aeProcessEvents(eventLoop, AE_ALL_EVENTS|
+                                    AE_CALL_BEFORE_SLEEP|
+-                                   AE_CALL_AFTER_SLEEP);
++                                   AE_CALL_AFTER_SLEEP | AE_DONT_WAIT);
+     }
+ }
+ 
+diff --git a/src/ae.h b/src/ae.h
+index 70ce8a2d..c1e65368 100644
+--- a/src/ae.h
++++ b/src/ae.h
+@@ -33,6 +33,12 @@
+ #ifndef __AE_H__
+ #define __AE_H__
+ 
++#include <sys/time.h>
++
++#include <tpa.h>
++
++extern struct tpa_worker *worker;
++
+ #include "monotonic.h"
+ 
+ #define AE_OK 0
+@@ -95,6 +101,9 @@ typedef struct aeFiredEvent {
+     int mask;
+ } aeFiredEvent;
+ 
++typedef void aeDoLibtpaAccept(struct tpa_worker *worker);
++typedef void aeDoServerCron(struct timeval *last, struct timeval *now, struct aeEventLoop *eventLoop, long long id, void *clientData);
++
+ /* State of an event based program */
+ typedef struct aeEventLoop {
+     int maxfd;   /* highest file descriptor currently registered */
+@@ -108,6 +117,10 @@ typedef struct aeEventLoop {
+     aeBeforeSleepProc *beforesleep;
+     aeBeforeSleepProc *aftersleep;
+     int flags;
++
++    aeDoLibtpaAccept *doLibtpaAccept;
++    aeDoServerCron *doServerCron;
++
+ } aeEventLoop;
+ 
+ /* Prototypes */
+diff --git a/src/ae_tpa_epoll.c b/src/ae_tpa_epoll.c
+new file mode 100644
+index 00000000..568565d6
+--- /dev/null
++++ b/src/ae_tpa_epoll.c
+@@ -0,0 +1,167 @@
++/* tpa_event_poll.c based on ae.c
++ *
++ * Copyright (c) 2009-2012, Salvatore Sanfilippo <antirez at gmail dot com>
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ *   * Redistributions of source code must retain the above copyright notice,
++ *     this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above copyright
++ *     notice, this list of conditions and the following disclaimer in the
++ *     documentation and/or other materials provided with the distribution.
++ *   * Neither the name of Redis nor the names of its contributors may be used
++ *     to endorse or promote products derived from this software without
++ *     specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++#include <tpa.h>
++
++#include "ae.h"
++
++#ifndef TPA
++#define TPA
++#endif
++
++struct tpa_worker *worker;
++
++
++typedef struct aeApiState {
++    int worker_id;
++    struct tpa_event *events;
++    int *sids;
++    int sid_index;
++} aeApiState;
++
++#define MAX_SOCK_NR     4096
++
++static int aeApiCreate(aeEventLoop *eventLoop)
++{
++    aeApiState *state = zmalloc(sizeof(aeApiState));
++
++    if (!state) return -1;
++    state->events = zmalloc(sizeof(struct tpa_event)*eventLoop->setsize);
++    if (!state->events) {
++        zfree(state);
++        return -1;
++    }
++
++    state->sids = zmalloc(sizeof(int) * MAX_SOCK_NR);
++    if (!state->sids) {
++        zfree(state->events);
++        zfree(state);
++        return -1;
++    }
++
++    for (int i = 0; i < MAX_SOCK_NR; ++i) {
++        state->sids[i] = i;
++    }
++
++    state->sid_index = 0;
++
++    eventLoop->apidata = state;
++    return 0;
++}
++
++static int aeApiResize(aeEventLoop *eventLoop, int setsize)
++{
++    aeApiState *state = eventLoop->apidata;
++
++    state->events = zrealloc(state->events, sizeof(struct tpa_event)*setsize);
++    return 0;
++}
++
++static void aeApiFree(aeEventLoop *eventLoop)
++{
++    aeApiState *state = eventLoop->apidata;
++
++    zfree(state->events);
++    zfree(state->sids);
++    zfree(state);
++}
++
++static int aeApiAddEvent(aeEventLoop *eventLoop, int sid, int mask)
++{
++    aeApiState *state = eventLoop->apidata;
++    struct tpa_event event = {0};
++
++    /* If the fd was already monitored for some event, we need a MOD
++    * operation. Otherwise we need an ADD operation. */
++    int op = eventLoop->events[sid].mask == AE_NONE ?
++        TPA_EVENT_CTRL_ADD : TPA_EVENT_CTRL_MOD;
++
++    event.events = 0;
++    mask |= eventLoop->events[sid].mask; /* Merge old events */
++    if (mask & AE_READABLE) event.events |= TPA_EVENT_IN;
++    if (mask & AE_WRITABLE) event.events |= TPA_EVENT_OUT;
++    event.data = &state->sids[sid];
++
++    if (tpa_event_ctrl(sid, op, &event) == -1)
++        return -1;
++
++    return 0;
++}
++
++static void aeApiDelEvent(aeEventLoop *eventLoop, int sid, int delmask)
++{
++    aeApiState *state = eventLoop->apidata;
++    struct tpa_event event = {0};
++    int mask = eventLoop->events[sid].mask & (~delmask);
++
++    event.events = 0;
++    if (mask & AE_READABLE) event.events |= TPA_EVENT_IN;
++    if (mask & AE_WRITABLE) event.events |= TPA_EVENT_OUT;
++    event.data = &state->sids[sid];
++
++    if (mask != AE_NONE)
++        tpa_event_ctrl(sid, TPA_EVENT_CTRL_MOD, &event);
++    else
++        tpa_event_ctrl(sid, TPA_EVENT_CTRL_DEL, &event);
++
++}
++
++static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
++    aeApiState *state = eventLoop->apidata;
++    int retval, numevents = 0;
++
++    (void) tvp;
++
++    retval = tpa_event_poll(worker, state->events, eventLoop->setsize);
++
++    if (retval > 0) {
++        int j;
++
++        numevents = retval;
++        for (j = 0; j < numevents; j++) {
++            int mask = 0;
++            struct tpa_event *e = &state->events[j];
++
++            if (e->events & TPA_EVENT_IN) mask |= AE_READABLE;
++            if (e->events & TPA_EVENT_OUT) mask |= AE_WRITABLE;
++            if (e->events & TPA_EVENT_ERR) mask |= AE_WRITABLE|AE_READABLE;
++            if (e->events & TPA_EVENT_HUP) mask |= AE_WRITABLE|AE_READABLE;
++            eventLoop->fired[j].fd = *(int *)e->data;
++            eventLoop->fired[j].mask = mask;
++        }
++    } else if (retval == -1 && errno != EINTR) {
++        panic("aeApiPoll: tpa_event_poll, %s", strerror(errno));
++    }
++
++    return numevents;
++}
++
++static char *aeApiName(void) {
++    return "tpa_event_poll";
++}
+diff --git a/src/anet_tpa.c b/src/anet_tpa.c
+new file mode 100644
+index 00000000..2997965c
+--- /dev/null
++++ b/src/anet_tpa.c
+@@ -0,0 +1,574 @@
++/* anet_tpa.c -- based anet.c
++ *
++ * Copyright (c) 2006-2012, Salvatore Sanfilippo <antirez at gmail dot com>
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ *   * Redistributions of source code must retain the above copyright notice,
++ *     this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above copyright
++ *     notice, this list of conditions and the following disclaimer in the
++ *     documentation and/or other materials provided with the distribution.
++ *   * Neither the name of Redis nor the names of its contributors may be used
++ *     to endorse or promote products derived from this software without
++ *     specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#include "fmacros.h"
++
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <sys/stat.h>
++#include <sys/un.h>
++#include <sys/time.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
++#include <arpa/inet.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <string.h>
++#include <netdb.h>
++#include <errno.h>
++#include <stdarg.h>
++#include <stdio.h>
++
++#include "anet.h"
++#include "config.h"
++
++#include "tpa.h"
++
++#define UNUSED(x) (void)(x)
++
++static void anetSetError(char *err, const char *fmt, ...)
++{
++    va_list ap;
++
++    if (!err) return;
++    va_start(ap, fmt);
++    vsnprintf(err, ANET_ERR_LEN, fmt, ap);
++    va_end(ap);
++}
++
++int anetSetBlock(char *err, int fd, int non_block)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    UNUSED(non_block);
++    return ANET_OK;
++}
++
++int anetNonBlock(char *err, int fd)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    return anetSetBlock(err,fd,1);
++}
++
++int anetBlock(char *err, int fd)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    return anetSetBlock(err,fd,0);
++}
++
++int anetCloexec(int fd)
++{
++    UNUSED(fd);
++    return ANET_OK;
++}
++
++int anetKeepAlive(char *err, int fd, int interval)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    UNUSED(interval);
++    return ANET_OK;
++}
++
++static int anetSetTcpNoDelay(char *err, int fd, int val)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    UNUSED(val);
++    return ANET_OK;
++}
++
++int anetEnableTcpNoDelay(char *err, int fd)
++{
++    return anetSetTcpNoDelay(err, fd, 1);
++}
++
++int anetDisableTcpNoDelay(char *err, int fd)
++{
++    return anetSetTcpNoDelay(err, fd, 0);
++}
++
++int anetSendTimeout(char *err, int fd, long long ms)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    UNUSED(ms);
++    return ANET_OK;
++}
++
++int anetRecvTimeout(char *err, int fd, long long ms)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    UNUSED(ms);
++    return ANET_OK;
++}
++
++/* Resolve the hostname "host" and set the string representation of the
++ * IP address into the buffer pointed by "ipbuf".
++ *
++ * If flags is set to ANET_IP_ONLY the function only resolves hostnames
++ * that are actually already IPv4 or IPv6 addresses. This turns the function
++ * into a validating / normalizing function. */
++int anetResolve(char *err, char *host, char *ipbuf, size_t ipbuf_len,
++                       int flags)
++{
++    struct addrinfo hints, *info;
++    int rv;
++
++    memset(&hints,0,sizeof(hints));
++    if (flags & ANET_IP_ONLY) hints.ai_flags = AI_NUMERICHOST;
++    hints.ai_family = AF_UNSPEC;
++    hints.ai_socktype = SOCK_STREAM;  /* specify socktype to avoid dups */
++
++    if ((rv = getaddrinfo(host, NULL, &hints, &info)) != 0) {
++        anetSetError(err, "%s", gai_strerror(rv));
++        return ANET_ERR;
++    }
++    if (info->ai_family == AF_INET) {
++        struct sockaddr_in *sa = (struct sockaddr_in *)info->ai_addr;
++        inet_ntop(AF_INET, &(sa->sin_addr), ipbuf, ipbuf_len);
++    } else {
++        struct sockaddr_in6 *sa = (struct sockaddr_in6 *)info->ai_addr;
++        inet_ntop(AF_INET6, &(sa->sin6_addr), ipbuf, ipbuf_len);
++    }
++
++    freeaddrinfo(info);
++    return ANET_OK;
++}
++
++static int anetSetReuseAddr(char *err, int fd)
++{
++    UNUSED(fd);
++    UNUSED(err);
++    return  ANET_ERR;
++}
++
++
++#define ANET_CONNECT_NONE 0
++#define ANET_CONNECT_NONBLOCK 1
++#define ANET_CONNECT_BE_BINDING 2 /* Best effort binding. */
++static int anetTcpGenericConnect(char *err, const char *addr, int port,
++                                 const char *source_addr, int flags)
++{
++    int s = ANET_ERR, rv;
++    char portstr[6];  /* strlen("65535") + 1; */
++    struct addrinfo hints, *servinfo, *bservinfo, *p, *b;
++
++    snprintf(portstr,sizeof(portstr),"%d",port);
++    memset(&hints,0,sizeof(hints));
++    hints.ai_family = AF_UNSPEC;
++    hints.ai_socktype = SOCK_STREAM;
++
++    if ((rv = getaddrinfo(addr,portstr,&hints,&servinfo)) != 0) {
++        anetSetError(err, "%s", gai_strerror(rv));
++        return ANET_ERR;
++    }
++    for (p = servinfo; p != NULL; p = p->ai_next) {
++        /* Try to create the socket and to connect it.
++         * If we fail in the socket() call, or on connect(), we retry with
++         * the next entry in servinfo. */
++        if ((s = socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
++            continue;
++        if (anetSetReuseAddr(err,s) == ANET_ERR) goto error;
++        if (flags & ANET_CONNECT_NONBLOCK && anetNonBlock(err,s) != ANET_OK)
++            goto error;
++        if (source_addr) {
++            int bound = 0;
++            /* Using getaddrinfo saves us from self-determining IPv4 vs IPv6 */
++            if ((rv = getaddrinfo(source_addr, NULL, &hints, &bservinfo)) != 0)
++            {
++                anetSetError(err, "%s", gai_strerror(rv));
++                goto error;
++            }
++            for (b = bservinfo; b != NULL; b = b->ai_next) {
++                if (bind(s,b->ai_addr,b->ai_addrlen) != -1) {
++                    bound = 1;
++                    break;
++                }
++            }
++            freeaddrinfo(bservinfo);
++            if (!bound) {
++                anetSetError(err, "bind: %s", strerror(errno));
++                goto error;
++            }
++        }
++        if (connect(s,p->ai_addr,p->ai_addrlen) == -1) {
++            /* If the socket is non-blocking, it is ok for connect() to
++             * return an EINPROGRESS error here. */
++            if (errno == EINPROGRESS && flags & ANET_CONNECT_NONBLOCK)
++                goto end;
++            close(s);
++            s = ANET_ERR;
++            continue;
++        }
++
++        /* If we ended an iteration of the for loop without errors, we
++         * have a connected socket. Let's return to the caller. */
++        goto end;
++    }
++    if (p == NULL)
++        anetSetError(err, "creating socket: %s", strerror(errno));
++
++error:
++    if (s != ANET_ERR) {
++        close(s);
++        s = ANET_ERR;
++    }
++
++end:
++    freeaddrinfo(servinfo);
++
++    /* Handle best effort binding: if a binding address was used, but it is
++     * not possible to create a socket, try again without a binding address. */
++    if (s == ANET_ERR && source_addr && (flags & ANET_CONNECT_BE_BINDING)) {
++        return anetTcpGenericConnect(err,addr,port,NULL,flags);
++    } else {
++        return s;
++    }
++}
++
++int anetTcpNonBlockConnect(char *err, const char *addr, int port)
++{
++    return anetTcpGenericConnect(err,addr,port,NULL,ANET_CONNECT_NONBLOCK);
++}
++
++int anetTcpNonBlockBestEffortBindConnect(char *err, const char *addr, int port,
++                                         const char *source_addr)
++{
++    return anetTcpGenericConnect(err,addr,port,source_addr,
++            ANET_CONNECT_NONBLOCK|ANET_CONNECT_BE_BINDING);
++}
++
++static int anetCreateSocket(char *err, int domain) {
++    int s;
++    if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
++        anetSetError(err, "creating socket: %s", strerror(errno));
++        return ANET_ERR;
++    }
++
++    /* Make sure connection-intensive things like the redis benchmark
++     * will be able to close/open sockets a zillion of times */
++    if (anetSetReuseAddr(err,s) == ANET_ERR) {
++        close(s);
++        return ANET_ERR;
++    }
++    return s;
++}
++
++int anetUnixGenericConnect(char *err, const char *path, int flags)
++{
++    int s;
++    struct sockaddr_un sa;
++
++    if ((s = anetCreateSocket(err,AF_LOCAL)) == ANET_ERR)
++        return ANET_ERR;
++
++    sa.sun_family = AF_LOCAL;
++    strncpy(sa.sun_path,path,sizeof(sa.sun_path)-1);
++    if (flags & ANET_CONNECT_NONBLOCK) {
++        if (anetNonBlock(err,s) != ANET_OK) {
++            close(s);
++            return ANET_ERR;
++        }
++    }
++    if (connect(s,(struct sockaddr*)&sa,sizeof(sa)) == -1) {
++        if (errno == EINPROGRESS &&
++            flags & ANET_CONNECT_NONBLOCK)
++            return s;
++
++        anetSetError(err, "connect: %s", strerror(errno));
++        close(s);
++        return ANET_ERR;
++    }
++    return s;
++}
++
++static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len, int backlog) {
++    if (bind(s,sa,len) == -1) {
++        anetSetError(err, "bind: %s", strerror(errno));
++        close(s);
++        return ANET_ERR;
++    }
++
++    if (listen(s, backlog) == -1) {
++        anetSetError(err, "listen: %s", strerror(errno));
++        close(s);
++        return ANET_ERR;
++    }
++    return ANET_OK;
++}
++
++static int _anetTcpServer(char *err, int port, char *bindaddr, int af, int backlog)
++{
++    UNUSED(af);
++    UNUSED(err);
++    UNUSED(backlog);
++    UNUSED(bindaddr);
++
++    if (tpa_listen_on(NULL, port, NULL) == -1)
++            return -1;
++
++    return -3; // mean for tpa
++}
++
++int anetTcpServer(char *err, int port, char *bindaddr, int backlog)
++{
++    return _anetTcpServer(err, port, bindaddr, AF_INET, backlog);
++}
++
++int anetTcp6Server(char *err, int port, char *bindaddr, int backlog)
++{
++    return _anetTcpServer(err, port, bindaddr, AF_INET6, backlog);
++}
++
++int anetUnixServer(char *err, char *path, mode_t perm, int backlog)
++{
++    int s;
++    struct sockaddr_un sa;
++
++    if (strlen(path) > sizeof(sa.sun_path)-1) {
++        anetSetError(err,"unix socket path too long (%zu), must be under %zu", strlen(path), sizeof(sa.sun_path));
++        return ANET_ERR;
++    }
++    if ((s = anetCreateSocket(err,AF_LOCAL)) == ANET_ERR)
++        return ANET_ERR;
++
++    memset(&sa,0,sizeof(sa));
++    sa.sun_family = AF_LOCAL;
++    strncpy(sa.sun_path,path,sizeof(sa.sun_path)-1);
++    if (anetListen(err,s,(struct sockaddr*)&sa,sizeof(sa),backlog) == ANET_ERR)
++        return ANET_ERR;
++    if (perm)
++        chmod(sa.sun_path, perm);
++    return s;
++}
++
++/* Accept a connection and also make sure the socket is non-blocking, and CLOEXEC.
++ * returns the new socket FD, or -1 on error. */
++static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *len) {
++    int fd;
++    do {
++        /* Use the accept4() call on linux to simultaneously accept and
++         * set a socket as non-blocking. */
++#ifdef HAVE_ACCEPT4
++        fd = accept4(s, sa, len,  SOCK_NONBLOCK | SOCK_CLOEXEC);
++#else
++        fd = accept(s,sa,len);
++#endif
++    } while(fd == -1 && errno == EINTR);
++    if (fd == -1) {
++        anetSetError(err, "accept: %s", strerror(errno));
++        return ANET_ERR;
++    }
++#ifndef HAVE_ACCEPT4
++    if (anetCloexec(fd) == -1) {
++        anetSetError(err, "anetCloexec: %s", strerror(errno));
++        close(fd);
++        return ANET_ERR;
++    }
++    if (anetNonBlock(err, fd) != ANET_OK) {
++        close(fd);
++        return ANET_ERR;
++    }
++#endif
++    return fd;
++}
++
++/* Accept a connection and also make sure the socket is non-blocking, and CLOEXEC.
++ * returns the new socket FD, or -1 on error. */
++int anetTcpAccept(char *err, int serversock, char *ip, size_t ip_len, int *port) {
++    int fd;
++    struct sockaddr_storage sa;
++    socklen_t salen = sizeof(sa);
++    if ((fd = anetGenericAccept(err,serversock,(struct sockaddr*)&sa,&salen)) == ANET_ERR)
++        return ANET_ERR;
++
++    if (sa.ss_family == AF_INET) {
++        struct sockaddr_in *s = (struct sockaddr_in *)&sa;
++        if (ip) inet_ntop(AF_INET,(void*)&(s->sin_addr),ip,ip_len);
++        if (port) *port = ntohs(s->sin_port);
++    } else {
++        struct sockaddr_in6 *s = (struct sockaddr_in6 *)&sa;
++        if (ip) inet_ntop(AF_INET6,(void*)&(s->sin6_addr),ip,ip_len);
++        if (port) *port = ntohs(s->sin6_port);
++    }
++    return fd;
++}
++
++/* Accept a connection and also make sure the socket is non-blocking, and CLOEXEC.
++ * returns the new socket FD, or -1 on error. */
++int anetUnixAccept(char *err, int s) {
++    int fd;
++    struct sockaddr_un sa;
++    socklen_t salen = sizeof(sa);
++    if ((fd = anetGenericAccept(err,s,(struct sockaddr*)&sa,&salen)) == ANET_ERR)
++        return ANET_ERR;
++
++    return fd;
++}
++
++int anetFdToString(int fd, char *ip, size_t ip_len, int *port, int fd_to_str_type) {
++    struct sockaddr_storage sa;
++    socklen_t salen = sizeof(sa);
++
++    if (fd_to_str_type == FD_TO_PEER_NAME) {
++        if (getpeername(fd, (struct sockaddr *)&sa, &salen) == -1) goto error;
++    } else {
++        if (getsockname(fd, (struct sockaddr *)&sa, &salen) == -1) goto error;
++    }
++
++    if (sa.ss_family == AF_INET) {
++        struct sockaddr_in *s = (struct sockaddr_in *)&sa;
++        if (ip) {
++            if (inet_ntop(AF_INET,(void*)&(s->sin_addr),ip,ip_len) == NULL)
++                goto error;
++        }
++        if (port) *port = ntohs(s->sin_port);
++    } else if (sa.ss_family == AF_INET6) {
++        struct sockaddr_in6 *s = (struct sockaddr_in6 *)&sa;
++        if (ip) {
++            if (inet_ntop(AF_INET6,(void*)&(s->sin6_addr),ip,ip_len) == NULL)
++                goto error;
++        }
++        if (port) *port = ntohs(s->sin6_port);
++    } else if (sa.ss_family == AF_UNIX) {
++        if (ip) {
++            int res = snprintf(ip, ip_len, "/unixsocket");
++            if (res < 0 || (unsigned int) res >= ip_len) goto error;
++        }
++        if (port) *port = 0;
++    } else {
++        goto error;
++    }
++    return 0;
++
++error:
++    if (ip) {
++        if (ip_len >= 2) {
++            ip[0] = '?';
++            ip[1] = '\0';
++        } else if (ip_len == 1) {
++            ip[0] = '\0';
++        }
++    }
++    if (port) *port = 0;
++    return -1;
++}
++
++/* Format an IP,port pair into something easy to parse. If IP is IPv6
++ * (matches for ":"), the ip is surrounded by []. IP and port are just
++ * separated by colons. This the standard to display addresses within Redis. */
++int anetFormatAddr(char *buf, size_t buf_len, char *ip, int port) {
++    return snprintf(buf,buf_len, strchr(ip,':') ?
++           "[%s]:%d" : "%s:%d", ip, port);
++}
++
++/* Like anetFormatAddr() but extract ip and port from the socket's peer/sockname. */
++int anetFormatFdAddr(int fd, char *buf, size_t buf_len, int fd_to_str_type) {
++    char ip[INET6_ADDRSTRLEN];
++    int port;
++
++    anetFdToString(fd,ip,sizeof(ip),&port,fd_to_str_type);
++    return anetFormatAddr(buf, buf_len, ip, port);
++}
++
++/* Create a pipe buffer with given flags for read end and write end.
++ * Note that it supports the file flags defined by pipe2() and fcntl(F_SETFL),
++ * and one of the use cases is O_CLOEXEC|O_NONBLOCK. */
++int anetPipe(int fds[2], int read_flags, int write_flags) {
++    int pipe_flags = 0;
++#if defined(__linux__) || defined(__FreeBSD__)
++    /* When possible, try to leverage pipe2() to apply flags that are common to both ends.
++     * There is no harm to set O_CLOEXEC to prevent fd leaks. */
++    pipe_flags = O_CLOEXEC | (read_flags & write_flags);
++    if (pipe2(fds, pipe_flags)) {
++        /* Fail on real failures, and fallback to simple pipe if pipe2 is unsupported. */
++        if (errno != ENOSYS && errno != EINVAL)
++            return -1;
++        pipe_flags = 0;
++    } else {
++        /* If the flags on both ends are identical, no need to do anything else. */
++        if ((O_CLOEXEC | read_flags) == (O_CLOEXEC | write_flags))
++            return 0;
++        /* Clear the flags which have already been set using pipe2. */
++        read_flags &= ~pipe_flags;
++        write_flags &= ~pipe_flags;
++    }
++#endif
++
++    /* When we reach here with pipe_flags of 0, it means pipe2 failed (or was not attempted),
++     * so we try to use pipe. Otherwise, we skip and proceed to set specific flags below. */
++    if (pipe_flags == 0 && pipe(fds))
++        return -1;
++
++    /* File descriptor flags.
++     * Currently, only one such flag is defined: FD_CLOEXEC, the close-on-exec flag. */
++    if (read_flags & O_CLOEXEC)
++        if (fcntl(fds[0], F_SETFD, FD_CLOEXEC))
++            goto error;
++    if (write_flags & O_CLOEXEC)
++        if (fcntl(fds[1], F_SETFD, FD_CLOEXEC))
++            goto error;
++
++    /* File status flags after clearing the file descriptor flag O_CLOEXEC. */
++    read_flags &= ~O_CLOEXEC;
++    if (read_flags)
++        if (fcntl(fds[0], F_SETFL, read_flags))
++            goto error;
++    write_flags &= ~O_CLOEXEC;
++    if (write_flags)
++        if (fcntl(fds[1], F_SETFL, write_flags))
++            goto error;
++
++    return 0;
++
++error:
++    close(fds[0]);
++    close(fds[1]);
++    return -1;
++}
++
++int anetSetSockMarkId(char *err, int fd, uint32_t id) {
++#ifdef HAVE_SOCKOPTMARKID
++    if (setsockopt(fd, SOL_SOCKET, SOCKOPTMARKID, (void *)&id, sizeof(id)) == -1) {
++        anetSetError(err, "setsockopt: %s", strerror(errno));
++        return ANET_ERR;
++    }
++    return ANET_OK;
++#else
++    UNUSED(fd);
++    UNUSED(id);
++    anetSetError(err,"anetSetSockMarkid unsupported on this platform");
++    return ANET_OK;
++#endif
++}
+diff --git a/src/connection.c b/src/connection.c
+index 11fc4ba2..1b4fab8d 100644
+--- a/src/connection.c
++++ b/src/connection.c
+@@ -30,6 +30,13 @@
+ #include "server.h"
+ #include "connhelpers.h"
+ 
++
++#include "tpa.h"
++
++#ifndef TPA
++#define TPA
++#endif
++
+ /* The connections module provides a lean abstraction of network connections
+  * to avoid direct socket and async event management across the Redis code base.
+  *
+@@ -50,6 +57,7 @@
+  */
+ 
+ ConnectionType CT_Socket;
++ConnectionType CT_Libtpa;
+ 
+ /* When a connection is created we must know its type already, but the
+  * underlying socket may or may not exist:
+@@ -76,7 +84,8 @@ ConnectionType CT_Socket;
+ 
+ connection *connCreateSocket() {
+     connection *conn = zcalloc(sizeof(connection));
+-    conn->type = &CT_Socket;
++    // conn->type = &CT_Socket;
++    conn->type = &CT_Libtpa;
+     conn->fd = -1;
+ 
+     return conn;
+@@ -378,6 +387,187 @@ ConnectionType CT_Socket = {
+     .get_type = connSocketGetType
+ };
+ 
++static void tpaClose(connection *conn)
++{
++    if (conn->fd != -1) {
++        aeDeleteFileEvent(server.el,conn->fd, AE_READABLE | AE_WRITABLE);
++        tpa_close(conn->fd);
++        conn->fd = -1;
++    }
++
++    /* If called from within a handler, schedule the close but
++     * keep the connection until the handler returns.
++     */
++    if (connHasRefs(conn)) {
++        conn->flags |= CONN_FLAG_CLOSE_SCHEDULED;
++        return;
++    }
++
++    zfree(conn);
++}
++
++static int tpaWrite(connection *conn, const void *data, size_t data_len)
++{
++    int ret = tpa_write(conn->fd, data, data_len);
++    if (ret < 0 && errno != EAGAIN) {
++        conn->last_errno = errno;
++
++        /* Don't overwrite the state of a connection that is not already
++         * connected, not to mess with handler callbacks.
++         */
++        if (errno != EINTR && conn->state == CONN_STATE_CONNECTED)
++            conn->state = CONN_STATE_ERROR;
++    }
++
++    return ret;
++}
++
++static int tpaWritev(connection *conn, const struct iovec *iov, int iovcnt)
++{
++    int i;
++    int ret = 0;
++    int res = 0;
++
++    for (i = 0; i < iovcnt; ++i) {
++        res = tpa_write(conn->fd, iov->iov_base, iov->iov_len);
++        if (res == -1)
++            break;
++
++        ret += res;
++    }
++
++    if (ret <= 0 && errno != EAGAIN) {
++        conn->last_errno = errno;
++
++        /* Don't overwrite the state of a connection that is not already
++         * connected, not to mess with handler callbacks.
++         */
++        if (errno != EINTR && conn->state == CONN_STATE_CONNECTED)
++            conn->state = CONN_STATE_ERROR;
++    }
++
++    return ret;
++}
++
++static int tpaRead(connection *conn, void *buf, size_t buf_len)
++{
++    struct tpa_iovec iov;
++    ssize_t ret;
++
++    ret = tpa_zreadv(conn->fd, &iov, 1);
++
++    if (ret == 0) {
++        conn->state = CONN_STATE_CLOSED;
++    } else if (ret < 0 && errno != EAGAIN) {
++        conn->last_errno = errno;
++
++        /* Don't overwrite the state of a connection that is not already
++         * connected, not to mess with handler callbacks.
++         */
++        if (errno != EINTR && conn->state == CONN_STATE_CONNECTED)
++            conn->state = CONN_STATE_ERROR;
++
++        return ret;
++    }
++
++    if (ret > (ssize_t)buf_len) {
++        fprintf(stderr, "[ fatal: tpa_zreadv len > buf_len ] [zreadv ret : %ld; buf_len : %lu; iov_len : %lu]\n",
++                ret, buf_len, iov.iov_len);
++        ret = buf_len;
++    }
++
++    if (ret > 0) {
++        memcpy(buf, iov.iov_base, ret);
++        iov.iov_read_done(iov.iov_base, iov.iov_param);
++    }
++
++    return ret;
++}
++
++int connGetTsockError(connection *conn)
++{
++    UNUSED(conn);
++    return 0;
++}
++
++static void tpaEventHandler(struct aeEventLoop *el, int fd, void *clientData, int mask)
++{
++    UNUSED(el);
++    UNUSED(fd);
++    connection *conn = clientData;
++
++    if (conn->state == CONN_STATE_CONNECTING &&
++            (mask & AE_WRITABLE) && conn->conn_handler) {
++
++        int conn_error = connGetTsockError(conn);
++        if (conn_error) {
++            conn->last_errno = conn_error;
++            conn->state = CONN_STATE_ERROR;
++        } else {
++            conn->state = CONN_STATE_CONNECTED;
++        }
++
++        if (!conn->write_handler) aeDeleteFileEvent(server.el,conn->fd,AE_WRITABLE);
++
++        if (!callHandler(conn, conn->conn_handler)) return;
++        conn->conn_handler = NULL;
++    }
++
++    /* Normally we execute the readable event first, and the writable
++     * event later. This is useful as sometimes we may be able
++     * to serve the reply of a query immediately after processing the
++     * query.
++     *
++     * However if WRITE_BARRIER is set in the mask, our application is
++     * asking us to do the reverse: never fire the writable event
++     * after the readable. In such a case, we invert the calls.
++     * This is useful when, for instance, we want to do things
++     * in the beforeSleep() hook, like fsync'ing a file to disk,
++     * before replying to a client. */
++    int invert = conn->flags & CONN_FLAG_WRITE_BARRIER;
++
++    int call_write = (mask & AE_WRITABLE) && conn->write_handler;
++    int call_read = (mask & AE_READABLE) && conn->read_handler;
++
++    /* Handle normal I/O flows */
++    if (!invert && call_read) {
++        if (!callHandler(conn, conn->read_handler)) return;
++    }
++    /* Fire the writable event. */
++    if (call_write) {
++        if (!callHandler(conn, conn->write_handler)) return;
++    }
++    /* If we have to invert the call, fire the readable event now
++     * after the writable one. */
++    if (invert && call_read) {
++        if (!callHandler(conn, conn->read_handler)) return;
++    }
++}
++
++static int tpaGetType(connection *conn) {
++    (void) conn;
++
++    return CONN_TYPE_TPA;
++}
++
++ConnectionType CT_Libtpa = {
++    .ae_handler = tpaEventHandler,
++    .close = tpaClose,
++    .write = tpaWrite,
++    .writev = tpaWritev,
++    .read = tpaRead,
++    .accept = connSocketAccept,
++    .connect = NULL, /* TODO */
++    .set_write_handler = connSocketSetWriteHandler,
++    .set_read_handler = connSocketSetReadHandler,
++    .get_last_error = connSocketGetLastError,
++    .blocking_connect = NULL, /* TODO */
++    .sync_write = NULL,
++    .sync_read = NULL,
++    .sync_readline = NULL,
++    .get_type = tpaGetType,
++};
++
+ 
+ int connGetSocketError(connection *conn) {
+     int sockerr = 0;
+diff --git a/src/connection.h b/src/connection.h
+index dad2e2fd..58353e14 100644
+--- a/src/connection.h
++++ b/src/connection.h
+@@ -53,6 +53,7 @@ typedef enum {
+ 
+ #define CONN_TYPE_SOCKET            1
+ #define CONN_TYPE_TLS               2
++#define CONN_TYPE_TPA            3
+ 
+ typedef void (*ConnectionCallbackFunc)(struct connection *conn);
+ 
+diff --git a/src/networking.c b/src/networking.c
+index 0664e2bf..b564ff30 100644
+--- a/src/networking.c
++++ b/src/networking.c
+@@ -1256,7 +1256,7 @@ void clientAcceptHandler(connection *conn) {
+ }
+ 
+ #define MAX_ACCEPTS_PER_CALL 1000
+-static void acceptCommonHandler(connection *conn, int flags, char *ip) {
++void acceptCommonHandler(connection *conn, int flags, char *ip) {
+     client *c;
+     char conninfo[100];
+     UNUSED(ip);
+diff --git a/src/server.c b/src/server.c
+index 298834ea..b8c71253 100644
+--- a/src/server.c
++++ b/src/server.c
+@@ -68,6 +68,9 @@
+ #include <sys/sysctl.h>
+ #endif
+ 
++#include <tpa.h>
++
++
+ /* Our shared "common" objects */
+ 
+ struct sharedObjectsStruct shared;
+@@ -2271,6 +2274,9 @@ int listenToPort(int port, socketFds *sfd) {
+     /* If we have no bind address, we don't listen on a TCP socket */
+     if (server.bindaddr_count == 0) return C_OK;
+ 
++    // XXX: only bind one addr on that port
++    server.bindaddr_count = 1;
++
+     for (j = 0; j < server.bindaddr_count; j++) {
+         char* addr = bindaddr[j];
+         int optional = *addr == '-';
+@@ -2371,6 +2377,34 @@ void makeThreadKillable(void) {
+     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+ }
+ 
++#define ACCEPT_BATCH		32
++void doLibtpaAccept(struct tpa_worker *worker)
++{
++    int sid[ACCEPT_BATCH];
++    int ret;
++    int i;
++
++    ret = tpa_accept_burst(worker, sid, ACCEPT_BATCH);
++    for (i = 0; i < ret; ++i) {
++            acceptCommonHandler(connCreateAcceptedSocket(sid[i]), 0, NULL);
++    }
++}
++
++void doServerCron(struct timeval *last, struct timeval *now, struct aeEventLoop *eventLoop, long long id, void *clientData)
++{
++    if (now->tv_sec > last->tv_sec || now->tv_usec > last->tv_usec + 1000) {
++        last->tv_sec = now->tv_sec;
++        last->tv_usec = now->tv_usec;
++        serverCron(eventLoop, id, clientData);
++    }
++}
++
++void doModulePipeRead()
++{
++    // need server.module_pipe[0]
++
++}
++
+ void initServer(void) {
+     int j;
+ 
+@@ -2558,30 +2592,41 @@ void initServer(void) {
+     /* Create the timer callback, this is our way to process many background
+      * operations incrementally, like clients timeout, eviction of unaccessed
+      * expired keys and so forth. */
++    /* XXX: disable; do it in loop, use system timer
+     if (aeCreateTimeEvent(server.el, 1, serverCron, NULL, NULL) == AE_ERR) {
+         serverPanic("Can't create event loop timers.");
+         exit(1);
+     }
++    */
++    server.el->doServerCron = doServerCron;
+ 
+     /* Create an event handler for accepting new connections in TCP and Unix
+      * domain sockets. */
++    /* XXX: disable ; do accept in loop before event poll
+     if (createSocketAcceptHandler(&server.ipfd, acceptTcpHandler) != C_OK) {
+         serverPanic("Unrecoverable error creating TCP socket accept handler.");
+     }
++    */
++    server.el->doLibtpaAccept = doLibtpaAccept;
++
++
++    /* XXX: disable
+     if (createSocketAcceptHandler(&server.tlsfd, acceptTLSHandler) != C_OK) {
+         serverPanic("Unrecoverable error creating TLS socket accept handler.");
+     }
+     if (server.sofd > 0 && aeCreateFileEvent(server.el,server.sofd,AE_READABLE,
+         acceptUnixHandler,NULL) == AE_ERR) serverPanic("Unrecoverable error creating server.sofd file event.");
+-
++    */
+ 
+     /* Register a readable event for the pipe used to awake the event loop
+      * from module threads. */
++    /* XXX: diable; maybe it will lead to error
+     if (aeCreateFileEvent(server.el, server.module_pipe[0], AE_READABLE,
+         modulePipeReadable,NULL) == AE_ERR) {
+             serverPanic(
+                 "Error registering the readable event for the module pipe.");
+     }
++    */
+ 
+     /* Register before and after sleep handlers (note this needs to be done
+      * before loading persistence since it is used by processEventsWhileBlocked. */
+@@ -6834,6 +6879,17 @@ int main(int argc, char **argv) {
+     int j;
+     char config_from_stdin = 0;
+ 
++    if (tpa_init(1) < 0) {
++        fprintf(stderr, "failed to init tpa: %s\n", strerror(errno));
++        return -1;
++    }
++
++    worker = tpa_worker_init();
++    if (!worker) {
++        fprintf(stderr, "failed to init tpa worker: %s\n", strerror(errno));
++        return -1;
++    }
++
+ #ifdef REDIS_TEST
+     if (argc >= 3 && !strcasecmp(argv[1], "test")) {
+         int flags = 0;
+diff --git a/src/server.h b/src/server.h
+index 61cff37a..869874d7 100644
+--- a/src/server.h
++++ b/src/server.h
+@@ -2532,6 +2532,7 @@ void initThreadedIO(void);
+ client *lookupClientByID(uint64_t id);
+ int authRequired(client *c);
+ void putClientInPendingWriteQueue(client *c);
++void acceptCommonHandler(connection *conn, int flags, char *ip);
+ 
+ #ifdef __GNUC__
+ void addReplyErrorFormatEx(client *c, int flags, const char *fmt, ...)
+-- 
+2.11.0
+

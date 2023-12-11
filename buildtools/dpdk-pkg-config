@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+[ -z "$RTE_SDK" ] && echo "error: missing RTE_SDK env var" && exit 1
+[ -z "$SRC_ROOT" ] && echo "error: you should not execute this script directly" && exit 1
+
+export PKG_CONFIG_PATH="$RTE_SDK/build/meson-private"
+
+gen_cflags_from_makefile()
+{
+	make cflags -f $SRC_ROOT/buildtools/cflags.mk
+}
+
+case "$1" in
+"--cflags")
+	if [ -d "$PKG_CONFIG_PATH" ]; then
+		pkg-config --cflags libdpdk
+	else
+		gen_cflags_from_makefile
+	fi
+	;;
+
+"--ldflags")
+	if [ -d "$PKG_CONFIG_PATH" ]; then
+		# we are doing static link with dpdk; here we just
+		# report the system ldflags.
+		pkg-config --libs --static libdpdk |  tr ' ' '\n' | grep -v rte | \
+			grep '^\-l[^ ]*' | sort | uniq | tr '\n' ' '
+	else
+		# nah, it's not easy to get below ldflags from legacy
+		# build system.
+		echo '-lpcap -lnuma -lpthread -ldl -lmlx5 -libverbs'
+	fi
+	;;
+esac

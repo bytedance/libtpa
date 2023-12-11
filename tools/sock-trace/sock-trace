@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021-2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+usage()
+{
+	cat << EOF
+usage: sock-trace sid|pattern   [-o output-options]
+       sock-trace file [offset] [-o output-options]
+       sock-trace
+       sock-trace -h
+
+- sock-trace sid|pattern
+
+  Dumps the first trace that matches the given input. It could
+  either be a sid or matching pattern.
+
+- sock-trace file [offset]
+
+  Dumps the trace from given offset in a file. Offset is set
+  to 0 when not given.
+
+- sock-trace
+
+  Lists all the traces when no args are provided.
+EOF
+
+	exit 1
+}
+
+sock_trace()
+{
+	if [ -f "$1" ]; then
+		path=$1
+		[[ "$2" =~ ^[0-9]*$ ]] && off=$2 && shift
+		shift
+
+		echo ":: $path $off"
+	else
+		if [[ "$1" =~ ^[0-9]*$ ]]; then
+			sid=$1
+			record=$(tpa sock-trace-list | awk -v sid=$sid '{ if ($5 == sid) print }')
+		else
+			pattern=$1
+			record=$(tpa sock-trace-list | grep "$pattern" | head -n 1)
+		fi
+		shift
+
+		if [ -z "$record" ]; then
+			echo "failed to find trace by sid/parttern $1" 1>&2
+			usage
+		fi
+
+		path=$(echo "$record" | head -n 1 | awk '{print $1}')
+		off=$(echo  "$record" | head -n 1 | awk '{print $2}')
+		echo ":: $record" | head -n 5
+	fi
+
+	tpa mem-file sock-trace $path $path $off $@
+}
+
+sock_trace_list()
+{
+	tpa sock-trace-list | less
+}
+
+if [ $# -eq 0 ]; then
+	sock_trace_list
+elif [ "$1" = "-h" ]; then
+	usage
+else
+	sock_trace $@
+fi

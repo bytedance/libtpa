@@ -1,0 +1,34 @@
+From 978a0303a3bf41598615a01392e6d4312101c3af Mon Sep 17 00:00:00 2001
+From: Viacheslav Ovsiienko <viacheslavo@nvidia.com>
+Date: Wed, 28 Apr 2021 12:31:45 +0300
+Subject: [PATCH] net/mlx5/linux: fix missed Rx packet stats
+
+There was a typo - the device context was wrongly provided
+instead of counter's one for the DevX query operation.
+
+Fixes: e6988afdc75a ("net/mlx5: fix imissed statistics")
+Cc: stable@dpdk.org
+
+Signed-off-by: Viacheslav Ovsiienko <viacheslavo@nvidia.com>
+---
+ drivers/net/mlx5/linux/mlx5_os.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/mlx5/linux/mlx5_os.c b/drivers/net/mlx5/linux/mlx5_os.c
+index 5ac787106d..6325607cdb 100644
+--- a/drivers/net/mlx5/linux/mlx5_os.c
++++ b/drivers/net/mlx5/linux/mlx5_os.c
+@@ -2697,8 +2697,8 @@ mlx5_os_read_dev_stat(struct mlx5_priv *priv, const char *ctr_name,
+ 	if (priv->sh) {
+ 		if (priv->q_counters != NULL &&
+ 		    strcmp(ctr_name, "out_of_buffer") == 0)
+-			return mlx5_devx_cmd_queue_counter_query(priv->sh->ctx,
+-							   0, (uint32_t *)stat);
++			return mlx5_devx_cmd_queue_counter_query
++					(priv->q_counters, 0, (uint32_t *)stat);
+ 		MKSTR(path, "%s/ports/%d/hw_counters/%s",
+ 		      priv->sh->ibdev_path,
+ 		      priv->dev_port,
+-- 
+2.24.3 (Apple Git-128)
+

@@ -1,0 +1,481 @@
+#!/usr/bin/ruby
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021-2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+require 'optparse'
+require 'fileutils'
+require 'colorize'
+
+require './matrix-shell/matrix-shell.rb'
+
+$times = -1
+$shell_queue = Queue.new
+$nr_loop = 0
+$threads = []
+$to_quit = false
+$force_to_quit = false
+$runners = {}
+$pretty_mode = true
+$stop_on_failure = false
+$version = nil
+$startup_time = Time.now
+$nr_total_testcase = 0
+$ns_list = []
+$extra_files = []
+$vars = [ ]
+$with_asan = false
+
+def parse_args
+	opt_parser = OptionParser.new do |opts|
+		opts.banner = "Usage: #{$0} [options] ms-file [ms-file2] ..."
+
+		opts.separator ''
+		opts.separator 'options:'
+
+		opts.on('-t times', '--times times', 'speicify the number of times to run for given testcases') { |times|
+			$times = times.to_i
+		}
+
+		opts.on('-n ns-list', '--ns-list ns-list', 'speicify the netns list') { |list|
+			$ns_list = list.split ','
+		}
+
+		opts.on('--extra-files files', 'extra files to copy to runtime bin dir') { |files|
+			$extra_files = files.split ','
+		}
+
+		opts.on('--root dir', 'specify a customized test root') { |dir|
+			$test_root = dir
+		}
+
+		opts.on('-s', '--stop-on-failure', 'stop testing once one failure is met') {
+			$stop_on_failure = true
+		}
+
+		opts.on('--var var', 'specify user defined params') { |var|
+			$vars.push var
+		}
+
+		opts.on('--with-asan', 'run with asan') {
+			$with_asan = true
+		}
+
+		opts.on('-p', '--pretty', 'pretty mode') {
+			$pretty_mode = true
+		}
+
+		opts.on_tail('-h', '--help', 'Show this message') {
+			puts opts
+			exit
+		}
+	end
+
+	opt_parser.parse!(ARGV)
+end
+
+def setup_test_dir
+	$test_root ||= "rj-root"
+	$test_root = Dir.pwd + '/' + $test_root if $test_root[0] != '/'
+
+	$test_runtime_root = $test_root + '/runtime'
+	$test_bin_dir      = $test_root + '/bin'
+	$test_result_dir   = $test_root + '/results'
+	$test_failed_dir   = $test_root + '/failed'
+
+	$failed_tests      = $test_failed_dir + '/list'
+end
+
+def load_matrix_shell
+	$shells = []
+	$nr_total_testcase = 0
+
+	ARGV.each { |file|
+		MatrixShell.new(file).each { |shell|
+			shell.append_user_defined_param $vars
+
+			$shells.push shell
+			$nr_total_testcase += 1
+		}
+	}
+end
+
+def setup_ns_list
+	return if $ns_list.any?
+
+	$ns_list = %x[ ip netns list 2>/dev/null ].split("\n")
+	$ns_list = [ 'host' ] if $ns_list.empty?
+end
+
+def copy_tpa
+	FileUtils.mkdir_p $test_bin_dir
+	ENV['TPA_PATH'] = $test_bin_dir
+	ENV['TPA_LIB'] = $test_bin_dir + '/libtpa.*'
+
+	src_root = ENV['TPA_SRC']
+	install_root = "/usr/share/tpa"
+
+	if src_root
+		# for backward compatibility
+		build_dir = "#{src_root}/build/output"
+		build_dir = "#{src_root}/build" if not File.directory? build_dir
+
+		system "cp #{build_dir}/bin/app/* #{$test_bin_dir}"
+		system "cp #{build_dir}/bin/tools/* #{$test_bin_dir}"
+		system "cp #{build_dir}/bin/tpad/tpad #{$test_bin_dir}"
+		system "cp #{build_dir}/libtpa.* #{$test_bin_dir}"
+	elsif File.directory? install_root
+		system "cp #{install_root}/* #{$test_bin_dir}"
+	else
+		STDERR.puts "warn: no tpa found"
+		$version = "-"
+	end
+
+	$extra_files.each { |file|
+		system "cp #{file} #{$test_bin_dir}"
+	}
+
+	$version = %x[ strings #{$test_bin_dir}/libtpa.* 2>/dev/null | grep -E '^v[0-9]+\\.[0-9]*' | head -n 1 ].chomp
+end
+
+def setup
+	parse_args
+
+	setup_test_dir
+	copy_tpa
+	load_matrix_shell
+	setup_ns_list
+
+	puts "#{$shells.size} testcases loaded with #{$ns_list.size} ns"
+end
+
+def feed_testcases
+	$shells.each { |shell|
+		$shell_queue.push shell
+	}
+
+	$nr_loop += 1
+end
+
+def feeder_loop
+	loop {
+		break if $force_to_quit
+
+		if $shell_queue.empty?
+			break if $times == 0
+
+			feed_testcases
+			$times -= 1
+		end
+
+		sleep 0.1
+	}
+
+	$to_quit = true
+	puts ":: testcase feeder quits" if ENV['DEBUG']
+end
+
+def spawn_feeder
+	$threads.push Thread.new {
+		feeder_loop
+	}
+end
+
+def get_dir_id(_dir, limit)
+	dirs = Dir[_dir + '/*'].entries.sort_by { |d| File.mtime d }
+
+	dirs.each { |dir|
+		id = File.basename dir
+		next if id !~ /^\d+$/
+
+		id = id.to_i
+		id += limit if dirs.size >= limit
+
+		return id
+	}
+
+	return 0
+end
+
+def create_archive_dir(_dir, limit)
+	FileUtils.mkdir_p _dir
+
+	$__next_id ||= {}
+	i = $__next_id[_dir] || get_dir_id(_dir, limit)
+	dir = nil
+	loop {
+		dir = _dir + '/' + (i % limit).to_s
+
+		FileUtils.rm_rf dir if i >= limit
+		FileUtils.mkdir dir rescue dir = nil
+		break if dir
+
+		i += 1
+	}
+
+	$__next_id[_dir] = i + 1
+
+	dir
+end
+
+# coredump may take times (especially when the system is heavily
+# occupied). Here is a hack to wait for the coredump being fully
+# generated.
+def wait_coredump(core)
+	size = File.size core
+
+	loop {
+		sleep 1
+
+		break if size == File.size(core)
+		size = File.size core
+	}
+end
+
+def calltrace_id(calltrace)
+	file = File.open calltrace
+
+	# skip the head
+	loop {
+		line = file.gets
+		break if not line or line =~ /Current thread/
+	}
+
+	funcs = []
+	loop {
+		line = file.gets
+		break if not line
+
+		line =~ /([^ ]+) \(/
+		funcs.push $1
+		break if funcs.size == 5
+	}
+
+	funcs.join " << "
+end
+
+def archive_failed_test(shell, cwd)
+	dir = create_archive_dir "#{$test_root}/failed", 4096
+
+	reason = ""
+	core = cwd + '/core'
+	if File.exist? core
+		wait_coredump core
+
+		bin = %x[ file #{core} | grep -o 'execfn[^,]*' | awk '{print $2}' | tr -d "'" ].chomp "\n"
+		if File.exists? bin
+			system "cp #{bin} #{dir}"
+			system "gdb #{bin} #{core} -batch -ex where >#{cwd}/calltrace 2>/dev/null"
+			reason = "=> crash at " + calltrace_id(cwd + '/calltrace')
+		end
+
+		system "gzip #{core}"
+	elsif File.exist?(cwd + '/error')
+		reason = "=> error: " + File.readlines(cwd + '/error')[0].chomp
+	end
+
+	system "cp #{cwd}/* #{dir}"
+
+	system "echo '#{dir} #{shell.desc} #{reason}'>> #{$failed_tests}"
+end
+
+def archive_test(shell, cwd)
+	dir = create_archive_dir "#{$test_root}/results", 65536
+
+	system "cp #{cwd}/* #{dir}"
+end
+
+def fecho(file, str)
+	File.open(file, "w") { |f|
+		f.puts str
+	}
+end
+
+def runner_loop(ns)
+	cwd = $test_runtime_root + '/' + ns
+
+	loop {
+		sleep 0.01
+		break if $force_to_quit or $to_quit
+
+		shell = $shell_queue.pop(non_block = true) rescue shell = nil
+		next if not shell
+
+		pid = fork {
+			FileUtils.rm_rf cwd
+			FileUtils.mkdir_p cwd
+			Dir.chdir cwd
+
+			ENV['TPA_ID'] = ns
+			if $with_asan
+				ENV['TPA_LIB'] = "/usr/lib/gcc/x86_64-linux-gnu/6/libasan.so:" + ENV['TPA_LIB']
+				ENV['RJ_WITH_ASAN'] = "yes"
+			end
+
+			fecho "script.sh", shell
+			fecho "version", $version
+			fecho "test", shell.desc
+			fecho "ns", ns
+
+			cmd = "bash script.sh >stdout 2>stderr"
+			cmd = "ip netns exec #{ns} #{cmd}" if ns != 'host'
+
+			start = Time.now
+			system cmd
+			fecho 'runtime', (Time.now - start).to_i.to_s
+
+			# means it's been interrupted (say, by ctrl-c)
+			exit 255 if not $?.exitstatus
+
+			fecho 'exitcode', $?.exitstatus
+			exit 1 if $?.exitstatus != 0
+		}
+
+		Process.waitpid pid
+		exitcode = $?.exitstatus
+		break if exitcode == 255 or $force_to_quit
+
+		Dir[cwd + '/*'].each { |f|
+			next if File.basename(f) == "core"
+			system "file #{f} | grep -q data && gzip #{f}"
+		}
+
+		if exitcode != 0 or File.exists? "#{cwd}/core" or File.exists? "#{cwd}/error"
+			$runners[ns]["nr_failure"] += 1
+			$runners[ns]["failed_testcases"][shell.desc] ||= 0
+			$runners[ns]["failed_testcases"][shell.desc] += 1
+
+			archive_failed_test shell, cwd
+
+			$force_to_quit = true if $stop_on_failure
+		else
+			archive_test shell, cwd
+		end
+
+		$runners[ns]["nr_testcase"] += 1
+	}
+
+	puts ":: runner #{ns} quits" if ENV['DEBUG']
+end
+
+def spawn_runners
+	# make sure we have testcases feed
+	loop {
+		break if not $shell_queue.empty?
+		sleep 1
+	}
+
+	# one runner per netns by default
+	$ns_list.each { |ns|
+		ns = ns.split[0]
+
+		$runners[ns] = {
+			"nr_testcase"	=> 0,
+			"nr_failure"	=> 0,
+			"failed_testcases" => {},
+		}
+
+		$threads.push Thread.new {
+			runner_loop ns
+		}
+	}
+end
+
+def normalize_time(sec)
+	if sec > 24 * 3600
+		div = 24 * 3600
+		unit = "d"
+	elsif sec > 3600
+		div = 3600
+		unit = "h"
+	elsif sec > 60
+		div = 60
+		unit = "m"
+	else
+		div = 1
+		unit = 's'
+	end
+
+	(sec.to_f / div).round(2).to_s + unit
+end
+
+def get_avg_time(duration, nr_finished_testcase)
+	return "-" if not $nr_total_testcase
+
+	normalize_time(duration * $nr_total_testcase / nr_finished_testcase)
+end
+
+def pretty_show
+	loop {
+		break if $force_to_quit or $to_quit
+
+		nr_testcase = 0
+		nr_failure  = 0
+		duration = Time.now - $startup_time
+
+		$runners.each { |ns, runner|
+			nr_testcase += runner["nr_testcase"]
+			nr_failure  += runner["nr_failure"]
+		}
+
+		printf "\r:: #{$version} total/failure/loop: %s / %s / %s %s; duration total/avg: %s/%s %s",
+			nr_testcase.to_s.cyan,
+			nr_failure > 0 ? nr_failure.to_s.bold.red : nr_failure.to_s.bold.green,
+			$nr_loop.to_s,
+			File.exist?($failed_tests) ? $failed_tests.light_black : "",
+			normalize_time(duration), get_avg_time(duration, nr_testcase),
+			"    \b\b\b\b" # to reset stale chars
+
+		sleep 0.2
+	}
+	puts
+end
+
+def show_summary
+	pretty_show if $pretty_mode
+
+	$threads.each { |thread|
+		thread.join
+	}
+
+	nr_testcase = 0
+	nr_failure  = 0
+	failed_testcases = {}
+	failed_file = "/tmp/tpa/failed.logs"
+
+	FileUtils.rm_f failed_file
+	$runners.each { |ns, runner|
+		nr_testcase += runner["nr_testcase"]
+		nr_failure  += runner["nr_failure"]
+		system "cat #{runner['failed_log']} >> #{failed_file}" if runner["failed_log"]
+
+		runner["failed_testcases"].each { |test, failed_times|
+			failed_testcases[test] ||= 0
+			failed_testcases[test] += failed_times
+		}
+	}
+
+	printf ":: total/failure/loop: %s / %s / %s\n",
+		nr_testcase.to_s.cyan,
+		nr_failure > 0 ? nr_failure.to_s.bold.red : nr_failure.to_s.bold.green,
+		$nr_loop.to_s
+
+	if File.exist? failed_file
+		puts "\n   failed testcases:"
+
+		failed_testcases.sort.to_h.each { |test, failed_times|
+			puts "\t#{failed_times} \t#{test}"
+		}
+		puts "\n\tless #{failed_file}"
+	end
+end
+
+Signal.trap('INT') {
+	$force_to_quit = true
+}
+
+setup
+spawn_feeder
+spawn_runners
+show_summary

@@ -1,0 +1,195 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+default_params:
+  server_nr_thread: 4
+  server_flow_mark: 0
+  server_sock_offload: 0
+  server_port_block_offload: 1
+
+  client_nr_thread: 4
+  client_flow_mark: 0
+  client_sock_offload: 0
+  client_port_block_offload: 1
+
+  duration: 1m
+  test: write
+  size: 4KB
+  connection_per_thread: 1
+  tso: 1
+  integrity_test: 1
+  zwrite: 1
+  ip: 127.0.0.1
+end
+
+client_args()
+{
+	args="-n $client_nr_thread -d $duration -t $test -m $size"
+	args+=" -C $connection_per_thread -W $zwrite -c $ip"
+
+	[ "$integrity_test" -eq 1 ] && args+=" -i"
+
+	echo "$args"
+}
+
+kill_tpa()
+{
+	id=$1
+
+	kill $(cat /run/tpa/$id/pid)
+}
+
+cp_mem_file()
+{
+	id=$1
+	prefix=$2
+	file=$3
+
+	# since tpa v0.9, tpad would create symlink files
+	# for socks and socktrace mem file, therefore, we need
+	# wait a while before the link is created.
+	path="/var/run/tpa/$id/$file"
+	for i in $(seq 50); do
+		[ -f "$path" ] && break
+		sleep 0.1
+	done
+
+	cp "$path" $prefix.$(basename $file)
+}
+
+kill_server()
+{
+	kill $server_pid
+	kill_tpa $SERVER_ID
+
+	cp_mem_file $SERVER_ID server "trace/socktrace"
+	cp_mem_file $SERVER_ID server "socks"
+}
+
+wait_tpa_being_up()
+{
+	role=$1
+
+	for i in $(seq 300); do
+		TPA_ID=${TPA_ID}_$role tpa uptime &>/dev/null && {
+			TPA_ID=${TPA_ID}_$role tpa cfg list > $role.cfg
+			return
+		}
+		sleep 0.1
+	done
+
+	echo "Timed out while waitting for libtpa $role being up" 1>&2
+	exit 1
+}
+
+wait_and_sample()
+{
+	wait_tpa_being_up client
+
+	if [ -n "$pktfuzz" ]; then
+		TPA_ID=$CLIENT_ID tpa cfg list | grep "pktfuzz" -q || {
+			sleep 2
+			echo "setting pktfuzz $pktfuzz ..."
+			TPA_ID=$CLIENT_ID tpa pktfuzz egress $pktfuzz
+		}
+	fi
+
+	while true; do
+		date >> server.worker
+		date >> client.worker
+		TPA_ID=$SERVER_ID tpa worker >> server.worker || exit 1
+		TPA_ID=$CLIENT_ID tpa worker >> client.worker || break
+
+		sleep 1
+	done
+
+	cat client.out
+
+	wait $client_pid || {
+		[ -n "$RJ_WITH_ASAN" ] && {
+			# we don't care memleak too much so far
+			grep -v '==ERROR: LeakSanitizer' *.out | grep '==ERROR' && exit 1
+
+			# exit early to skip further validation for asan mode
+			exit 0
+		}
+
+		echo "failed to wait client $client_pid: $?" 1>&2
+		exit 1
+	}
+
+	cp_mem_file $CLIENT_ID client "trace/socktrace"
+	cp_mem_file $CLIENT_ID client "socks"
+}
+
+wait_tpa()
+{
+	id=$1
+
+	echo "waitting for last libtpa instance $id ..."
+	time flock -w 10 /var/run/tpa/$id/flock true || {
+		echo "timeout while waitting for last libtpa instance: $id"
+		tpa -vv
+
+		echo "kill it by force"
+		kill_tpa $id
+		time flock -w 10 /var/run/tpa/$id/flock true || echo "timeout again"
+	} 1>&2
+}
+
+run()
+{
+	SERVER_ID=${TPA_ID}_server
+	CLIENT_ID=${TPA_ID}_client
+
+	# wait until let the last run release the libtpa flock
+	wait_tpa $SERVER_ID
+	wait_tpa $CLIENT_ID
+
+	SERVER_TPA_CFG+="log { file = server.tpa_log; } tcp { tso = $tso; }"
+	TPA_ID=$SERVER_ID TPA_CFG="$TPA_CFG $SERVER_TPA_CFG"	\
+		tpa run tperf -s -n $server_nr_thread 1>server.out 2>&1 &
+	server_pid=$!
+
+	trap kill_server EXIT SIGTERM SIGINT
+	wait_tpa_being_up server
+
+	> client.out
+	if [ -n "$pktfuzz" ]; then
+		echo "$pktfuzz" > client.out
+		CLIENT_TPA_CFG+="pktfuzz { enable = 1; }
+				    shell { postinit_cmd = pktfuzz egress $pktfuzz; }"
+	fi
+
+	CLIENT_TPA_CFG+="log { file = client.tpa_log; } tcp { tso = $tso; }"
+	TPA_ID=$CLIENT_ID TPA_CFG="$TPA_CFG $CLIENT_TPA_CFG"	\
+		tpa run tperf $(client_args) 1>>client.out 2>&1 &
+	client_pid=$!
+
+	wait_and_sample
+}
+
+detect_count0_error()
+{
+	error="$(grep count=0 client.out)"
+	if [ -n "$error" ]; then
+		nr_error=$(echo "$error" | wc -l)
+		echo "count=0 test=$test <$nr_error>" > error
+		echo "$error" >> error
+
+		exit 1
+	fi
+}
+
+detect_zero_io_conn_error()
+{
+	error="$(grep 'nr_zero_io_conn=[1-9]' client.out)"
+	if [ -n "$error" ]; then
+		nr_error=$(echo "$error" | wc -l)
+		echo "has zero io connection test=$test <$nr_error>" > error
+		echo "$error" >> error
+
+		exit 1
+	fi
+}

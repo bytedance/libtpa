@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+
+dpdk_ldflags=$(buildtools/dpdk-pkg-config --ldflags)
+
+gen_pkg_config_file()
+{
+	cat > build/libtpa-internal.pc <<EOF
+prefix=$(pwd)
+libdir=\${prefix}/build
+includedir=\${prefix}/include/api
+
+Name: libtpa
+Description: Libtpa, a userspace TCP stack implementation
+Version: $TPA_VERSION
+Libs: -L\${libdir} -Wl,--whole-archive -l:libtpa.a -Wl,--no-whole-archive $dpdk_ldflags -lpthread
+Cflags: -I\${includedir}
+EOF
+
+	cat > build/libtpa.pc <<EOF
+prefix=/usr/share/tpa
+libdir=\${prefix}
+includedir=\${prefix}
+
+Name: libtpa
+Description: Libtpa, a userspace TCP stack implementation
+Version: $TPA_VERSION
+Libs: -L\${libdir} -Wl,--whole-archive -l:libtpa.a -Wl,--no-whole-archive $dpdk_ldflags -lpthread
+Cflags: -I\${includedir}
+EOF
+}
+
+gen_pkg_config_file

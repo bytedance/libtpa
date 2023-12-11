@@ -1,0 +1,213 @@
+### valid
+
+tcp {
+	tso    = 0
+	opt_ts = 1
+}
+#=> tcp.tso = 0
+#=> tcp.opt_ts = 1
+
+#---
+# test multi section
+dpdk
+{
+	socket-mem      = 1024,1024
+	pci		= 0000:00:05.0   0000:00:05.0  
+}
+
+net {
+	ip   = 192.168.1.2
+	mask = 255.255.252.0
+	gw   = 192.168.1.1
+}
+
+#=> dpdk.pci = 0000:00:05.0 0000:00:05.0
+#=> net.gw = 192.168.1.1
+
+#---
+dpdk {
+}
+
+#---
+dpdk
+{
+	socket-mem = 1024
+}
+#=> dpdk.socket-mem = 1024
+
+#---
+dpdk
+{
+	socket-mem = 1024,2048
+}
+#=> dpdk.socket-mem = 1024,2048
+
+#---
+# test comments
+net {# this is a net section
+	ip   = 192.168.1.2    # set the ip
+	mask = 255.255.252.0  # set the mask
+	# set the gw ip
+	gw   = 192.168.1.1
+} # end of net section
+
+#=> net.ip = 192.168.1.2
+#=> net.mask = 255.255.252.0
+#=> net.gw = 192.168.1.1
+
+#---
+tcp { tso = 0 ; opt_ts = 1; } dpdk { pci = null; }
+
+#=> tcp.opt_ts = 1
+#=> dpdk.pci  = null
+
+#---
+# test cfg opt overwrite
+tcp {
+	opt_ts = 0
+	opt_ts = 1
+}
+
+tcp {
+	opt_ts = 2
+	opt_ts = 3
+}
+
+#=> tcp.opt_ts = 3
+
+
+#---
+trace {
+	trace_size = 16MB
+}
+#=> trace.trace_size = 16MB
+
+#---
+trace {
+	trace_size = 16777216
+}
+#=> trace.trace_size = 16777216
+
+#---
+tcp {
+	time_wait = 200ms
+}
+#=> tcp.time_wait = 200ms
+
+#---
+tcp {
+	time_wait = 200000
+}
+#=> tcp.time_wait = 200000
+
+#---
+dpdk {
+	pci = "0000:00:05.0,arg1=val"
+}
+#=> dpdk.pci = 0000:00:05.0,arg1=val
+
+
+#---
+### invalid
+
+dpdk #hello {
+	socket-mem = 1024
+}
+
+#---
+dpdk {
+	socket-mem = 1024,1024  pci = 0000:00:05.0 0000:00:05.0
+}
+#=> dpdk.socket-mem = N/A
+
+#---
+{
+	socket-mem = 1024
+}
+
+#---
+dpdk { {
+	socket-mem = 1024
+}
+#=> dpdk.socket-mem = N/A
+
+#---
+dpdk
+{        socket-mem = 1024 }
+#=> dpdk.socket-mem = N/A
+
+#---
+dpdk }{
+	socket-mem = 1024
+}
+
+#---
+dpdk {
+	socket-mem = 1024
+net {}
+
+# we accept all valid options until error is met
+#=> dpdk.socket-mem = 1024
+
+#---
+dpdk {
+	socket-mem == 1024,1024
+	pci = 0000:00:05.0 0000:00:05.0
+}
+
+#---
+dpdk {
+	socket-mem = { 1024,1024
+	pci = 0000:00:05.0 0000:00:05.0
+}
+#=> dpdk.socket-mem = N/A
+
+#---
+dpdk {
+	socket-mem 1024,1024
+	pci = 0000:00:05.0 0000:00:05.0
+}
+#=> dpdk.socket-mem = N/A
+#=> dpdk.pci = N/A
+
+#---
+# test token too long
+misc {
+	x = 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+}
+
+#=> misc.x = N/A
+
+#---
+tcp {
+	= 1
+}
+
+#---
+tcp {
+	tso =
+}
+#=> tcp.tso = N/A
+
+
+#---
+# missing ; for ts_opt
+tcp { tso = 0 ; ts_opt = 1 } dpdk { pci = null; }
+
+# we accept all valid options until error is met
+#=> tcp.tso = 0
+#=> tcp.ts_opt = N/A
+
+
+#---
+tcp {
+	tso = 1=2
+}
+#=> tcp.tso = N/A
+
+#---
+dpdk {
+	pci = "0000:00:05.0,arg1=val
+	socket-mem = 1024
+}
+#=> dpdk.pci = N/A

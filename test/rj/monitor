@@ -1,0 +1,27 @@
+#!/usr/bin/ruby
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+def monitor(root)
+	raise "invalid test root: #{root}" if not File.directory?(root + '/runtime')
+
+	loop {
+		puts "\e[H\e[2J"
+		printf "%-12s %-8s %s", "ns", "elapsed", "test"
+
+		Dir[root + '/runtime/*'].sort.each { |dir|
+			ns = File.basename dir
+			elapsed = Time.now - File.ctime(dir + '/script.sh') rescue 0
+			test = File.read(dir + '/test').chomp rescue nil
+			next if not test
+
+			printf "\n%-12s %-8d %s", ns, elapsed, test
+		}
+
+		sleep 1
+	}
+end
+
+monitor ARGV[0]

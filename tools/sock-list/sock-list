@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2022-2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+detect_mem_file_opt()
+{
+	# here we care -f option only
+	local opts=( $(getopt -q -u -o f: -- "$@") )
+
+	[ "${opts[0]}" = "-f" ] && mem_file=${opts[1]}
+}
+
+set_mem_file()
+{
+	detect_mem_file_opt "$@"
+	[ -n "$mem_file" ] && return
+
+	# set a default mem file one if -f option not provided
+	id=${TPA_ID:-default}
+	mem_file="/var/run/tpa/$id/socks"
+	if [ ! -f "$mem_file" ]; then
+		mem_file=$(ls /var/log/tpa/$id/socks* --sort=time | head -n 1)
+		[ -z "$mem_file" ] && {
+			echo "error: no socks file found"
+			exit 1
+		}
+	fi
+
+	extra_args="-f $mem_file"
+}
+
+set_mem_file "$@"
+tpa mem-file sock-list $mem_file $@ $extra_args

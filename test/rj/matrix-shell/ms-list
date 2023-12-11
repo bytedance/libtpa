@@ -1,0 +1,63 @@
+#!/usr/bin/ruby
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+require 'optparse'
+
+require "#{__dir__}/matrix-shell.rb"
+
+$mode = "show_shell"
+$grep = nil
+$vars = []
+
+opt_parser = OptionParser.new do |opts|
+	opts.banner = 'Usage: list [options] ms-file'
+
+	opts.separator ''
+	opts.separator 'options:'
+
+	opts.on('-s', '--short', 'show desc only') {
+		$mode = "show_desc"
+	}
+
+	opts.on('-S', '--shell', 'dump shell') {
+		$mode = "show_shell"
+	}
+
+	opts.on('--var var', 'specify user defined params') { |var|
+		$vars.push var
+	}
+
+	opts.on('-g pattern', '--grep pattern', 'only show those match the given pattern') { |pattern|
+		$grep = Regexp.new pattern
+	}
+
+	opts.on_tail('-h', '--help', 'show this message') {
+		puts opts
+		exit
+	}
+end
+
+opt_parser.parse!(ARGV)
+if not ARGV[0]
+	STDERR.puts opt_parser
+	exit 1
+end
+
+def list(shell)
+	if $mode == "show_shell"
+		puts "------"
+		puts shell
+		puts
+	else
+		puts shell.desc
+	end
+end
+
+MatrixShell.new(ARGV[0]).each_matched($grep) { |shell|
+	shell.append_user_defined_param $vars
+
+	list shell
+}

@@ -1,0 +1,185 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021-2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+[ -z "$TPA_PATH" ] && export TPA_PATH=/usr/share/tpa
+export PATH=$TPA_PATH:$PATH
+
+# TODO: better to dump available cmds from tsh
+TSH_CMDS=(arp
+	  archive
+	  neigh
+	  cfg
+	  echo
+	  mem-stats
+	  pktfuzz
+	  worker
+	  vstats-reset
+	  uptime
+	  port
+	  port_alloc
+)
+
+ALIAS=("mem-stats	mem"
+       "run		r"
+       "sock-list	sl	sk	s"
+       "sock-stats	ss"
+       "sock-trace	st"
+       "tsh		sh"
+       "version		-v"
+       "verbose_version	-vv"
+       "worker-stats	ws"
+)
+
+alias_to_cmd()
+{
+	for record in "${ALIAS[@]}"; do
+		local cmd=$(echo $record | awk '{print $1}')
+		for al in $(echo $record | awk '{$1=""; print}'); do
+			if [ "$al" = "$1" ]; then
+				echo "$cmd"
+				return
+			fi
+		done
+	done
+
+	echo "$1"
+}
+
+is_tsh_cmd()
+{
+	cmd=$1
+
+	for i in ${TSH_CMDS[@]}; do
+		if [ "$i" = "$cmd" ]; then
+			true
+			return
+		fi
+	done
+
+	false
+}
+
+running_instances()
+{
+	for i in $(ls /var/run/tpa/*/pid 2>/dev/null); do
+		id=$(basename $(dirname $i))
+		pid=$(cat $i 2>/dev/null)
+		uptime=$(TPA_ID=$id tpa uptime 2>/dev/null)
+
+		[ -n "$uptime" ] && echo "$id $pid $uptime"
+	done
+}
+
+set_tpa_id()
+{
+	cmd=$1
+
+	[ -n "$TPA_ID" ] && return
+
+	live_instances=()
+	nr_live=0
+	while read id ignore; do
+		live_instances[$nr_live]=$id
+		let nr_live+=1
+	done <<< "$(running_instances)"
+
+	if [ $nr_live -eq 1 ]; then
+		export TPA_ID=${live_instances[0]}
+	elif [ $nr_live -gt 1 ]; then
+		echo ":: error: multiple live libtpa instance detected: [${live_instances[*]}]" 1>&2
+		echo ":: TPA_ID has to be set to one of above value to execute above tpa cmd"   1>&2
+		echo ":: example: TPA_ID=${live_instances[0]} tpa $cmd ..."
+		exit 1
+	fi
+}
+
+installed_version()
+{
+	cat /usr/share/tpa/version 2>/dev/null
+}
+
+running_version()
+{
+	tpa sh version 2>/dev/null || echo '-'
+}
+
+version()
+{
+	echo "running/installed: $(running_version) / $(installed_version)"
+}
+
+tablize()
+{
+	if which column >/dev/null; then
+		column -t -s $'\t'
+	else
+		cat
+	fi
+}
+
+verbose_version()
+{
+	echo "installed: $(installed_version)"
+
+	echo "running:"
+	echo "--------"
+	{
+		printf "%s\t%s\t%s\t%s\t%s\n" TPA_ID pid program version uptime
+		while read id pid uptime; do
+			[ -z "$id" ] && break
+
+			program=$(basename $(readlink /proc/$pid/exe | awk '{print $1}'))
+			version=$(TPA_ID=$id running_version)
+
+			printf "%s\t%s\t%s\t%s\t%s\n" "$id" "$pid" \
+			       "$program" "$version" "$uptime"
+		done <<< "$(running_instances)"
+	} | tablize
+}
+
+require_tpa_id()
+{
+	local cmd=$1
+
+	# below cmds don't require a tpa id
+	for i in verbose_version sock-trace sock-trace-list run mlnx.sh mem-file; do
+		[ "$i" = "$cmd" ] && return 1
+	done
+
+	return 0
+}
+
+exec_cmd()
+{
+	cmd=$(alias_to_cmd $1)
+	shift 1
+
+	# TODO: show helps
+	[ -z "$cmd" ] && exit
+
+	require_tpa_id $cmd && set_tpa_id $cmd
+
+	[[ $(type -t "$cmd") == function ]] && {
+		$cmd
+		return
+	}
+
+	if is_tsh_cmd $cmd; then
+		exec tsh $cmd "$@"
+	fi
+
+	for dir in ${TPA_PATH//:/ }; do
+		path=$dir/$cmd
+		if [ -x "$path" ]; then
+			exec $path "$@"
+		fi
+	done
+
+	echo "tpa: $cmd: command not found" 1>&2
+	exit 1
+}
+
+exec_cmd "$@"

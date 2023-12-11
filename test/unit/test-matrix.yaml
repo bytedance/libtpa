@@ -1,0 +1,178 @@
+tcp_connect:
+  ts_opt:
+  -
+  - -t
+  sack_perm:
+  -
+  - -s
+  mss_opt:
+  -
+  - -m 0
+  - -m 1024
+  - -m 1460
+  - -m 4096
+  - -m 65535
+  wscale_opt:
+  -
+  - -w 0
+  - -w 1
+  - -w 10
+  - -w 20
+  ipv6:
+  - -6 0
+  - -6 1
+  tso:
+  - -T 0
+  - -T 1
+tcp_input_bench:
+  flow_mark:
+  - -F 0
+  - -F 1
+  sock_trace:
+  - -S 0
+  - -S 1
+tcp_output_fast_retrans:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+tcp_output_chain:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+  sock_trace:
+  - -S 0
+  - -S 1
+tcp_output_seq:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_output_merge:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_output_wnd:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_output_partial_ack:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_output_dev_txq_full:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_output.*:
+  message_size:
+  - -M 1
+  - -M 300
+  - -M 1400
+  - -M 1500
+  - -M 4096
+  - -M 65536
+  - -M 524288
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_timeout_rto:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_close:
+  message_size:
+  - -M 1
+  - -M 300
+  - -M 1400
+  - -M 1500
+  - -M 4096
+  - -M 65536
+  - -M 524288
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_input_rst:
+  zero_copy:
+  - -Z 0
+  - -Z 1
+  - -Z 2
+  tso:
+  - -T 0
+  - -T 1
+tcp_zwritev:
+  tso:
+  - -T 0
+  - -T 1
+  ipv6:
+  - -6 0
+  - -6 1
+tcp_listen:
+  flow_mark:
+  - -F 0
+  - -F 1
+  ipv6:
+  - -6 0
+  - -6 1

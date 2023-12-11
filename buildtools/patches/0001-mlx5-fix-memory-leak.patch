@@ -1,0 +1,28 @@
+From 9bbdea81221d291afcee4dd238c0ed2c3db26953 Mon Sep 17 00:00:00 2001
+From: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+Date: Mon, 19 Jul 2021 14:23:06 +0800
+Subject: [PATCH] mlx5: fix memory leak
+
+The mr should be released on unmap; otherwise, it introduces memory leak.
+
+Signed-off-by: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+---
+ drivers/net/mlx5/mlx5_mr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/mlx5/mlx5_mr.c b/drivers/net/mlx5/mlx5_mr.c
+index 0d549b68e6..54a11bd5d1 100644
+--- a/drivers/net/mlx5/mlx5_mr.c
++++ b/drivers/net/mlx5/mlx5_mr.c
+@@ -1408,7 +1408,7 @@ mlx5_dma_unmap(struct rte_pci_device *pdev, void *addr,
+ 		return -1;
+ 	}
+ 	LIST_REMOVE(mr, mr);
+-	LIST_INSERT_HEAD(&sh->mr.mr_free_list, mr, mr);
++	mr_free(mr);
+ 	DEBUG("port %u remove MR(%p) from list", dev->data->port_id,
+ 	      (void *)mr);
+ 	mr_rebuild_dev_cache(sh);
+-- 
+2.20.1
+

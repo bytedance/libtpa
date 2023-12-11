@@ -1,0 +1,9 @@
+*.swp
+GPATH
+GRTAGS
+GTAGS
+perf.data*
+version.h
+build-info.h
+core
+build

@@ -1,0 +1,192 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021-2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+# for ifconfig cmd
+export PATH=$PATH:/sbin
+
+# for nic_xxx.sh
+[ -z "$TPA_PATH" ] && export TPA_PATH=/usr/share/tpa
+export PATH=$TPA_PATH:$PATH
+
+support_driver="mlx5"
+
+eth_has_ip()
+{
+	ifconfig $1 2>/dev/null | grep -q inet # matches ipv4 and ipv6
+}
+
+eth_is_valid()
+{
+	ethtool -i $1 2>/dev/null | grep -qE "$support_driver"
+}
+
+eth_is_bond()
+{
+	[ -f /proc/net/bonding/$1 ]
+}
+
+# Return the slave list if it's a bond device.
+# Otherwise, return the dev itself.
+get_eth_list()
+{
+	eth_is_bond $1 || {
+		echo $1
+		return
+	}
+
+	slaves=""
+	for eth in $(grep -i interface /proc/net/bonding/$1 | awk '{print $NF}'); do
+		eth_is_valid $eth || continue
+		slaves+="$eth "
+	done
+
+	echo $slaves
+}
+
+get_eth_driver()
+{
+	for eth in $(get_eth_list $TPA_ETH_DEV); do
+		# return the driver of the first eth (or slave) device
+		ethtool -i $eth 2>/dev/null | grep driver | awk '{print $2}'
+		break
+	done
+}
+
+eth_dev_detect()
+{
+	[ -n "$TPA_ETH_DEV" ] && return
+
+	# XXX: here we just take the first valid nic eth we meet
+	for i in /sys/class/net/*; do
+		eth=$(basename $i)
+		eth_is_valid $eth || continue
+		eth_has_ip $eth || continue
+
+		TPA_ETH_DEV="$eth"
+		return
+	done
+
+	echo "error: no valid eth device found"
+	ifconfig
+	exit 1
+}
+
+eth_dev_init()
+{
+	eth_dev_detect
+
+	driver=$(get_eth_driver $TPA_ETH_DEV)
+	if [[ $driver =~ "mlx5" ]]; then
+		source nic_mlnx.sh
+	else
+		echo "error: unsupport driver: $driver"
+		exit 1
+	fi
+
+	if ! nic_dev_init; then
+		echo "error: failed to init nic: $driver"
+		exit 1
+	fi
+}
+
+cfg_bonding()
+{
+	eth_is_bond $TPA_ETH_DEV || return
+
+	bonding_cfg="bonding = "
+	for slave in $(get_eth_list $TPA_ETH_DEV); do
+		bonding_cfg+=" $slave/$(nic_dev_get_pci $slave)"
+	done
+
+	TPA_NET_CFG+="$bonding_cfg;"
+}
+
+cfg_mac()
+{
+	mac=$(ifconfig $TPA_ETH_DEV | grep 'ether ' | awk '{print $2}')
+	[ -n "$mac" ] && TPA_NET_CFG+="mac=$mac; "
+}
+
+cfg_ipv4()
+{
+	ip=$(ifconfig $TPA_ETH_DEV | grep 'inet ' | awk '{print $2}')
+	mask=$(ifconfig $TPA_ETH_DEV | awk '/netmask/{print $4}')
+	gw=$(ip route | grep "default.*$TPA_ETH_DEV" | awk '{print $3}')
+	[ -z "$gw" ] && gw=$(ip route | grep "default" | head -n 1 | awk '{print $3}')
+
+	[ -n "$ip" ] && TPA_NET_CFG+="ip=$ip; mask=$mask; "
+	[ -n "$gw" ] && TPA_NET_CFG+="gw=$gw; "
+}
+
+cfg_ipv6()
+{
+	ip6=$(ifconfig $TPA_ETH_DEV | grep 'inet6.*global' | head -n 1 | awk '{printf "%s/%s", $2, $4}')
+	[ -z "$ip6" ] && ip6=$(ifconfig $TPA_ETH_DEV | grep 'inet6.*link' | head -n 1 | awk '{printf "%s/%s", $2, $4}')
+	gw6=$(ip -6 route | grep "default.*$TPA_ETH_DEV" | grep -v fe80: | awk '{print $3}')
+
+	[ -n "$ip6" ] && TPA_NET_CFG+="ip6=$ip6; "
+	[ -n "$gw6" ] && TPA_NET_CFG+="gw6=$gw6; "
+}
+
+log_tpa_cfg()
+{
+	local log_file="/var/log/tpa/startup.log"
+
+	# log rotate
+	if [ -f $log_file ] && [ $(stat $log_file --printf="%s") -ge 2097152 ]; then
+		mv $log_file $log_file.1
+	fi
+
+	mkdir -p $(dirname $log_file)
+	{
+		date
+		echo ":: TPA_CFG='$TPA_CFG'"
+		echo ":: cmd=$cmd"
+
+		ifconfig -a
+		lsmod
+
+		echo
+	} >> $log_file
+}
+
+tpa_cfg()
+{
+	TPA_NET_CFG="net { name=$TPA_ETH_DEV; "
+	cfg_mac
+	cfg_ipv4
+	cfg_ipv6
+	cfg_bonding
+	TPA_NET_CFG+="}"
+
+	TPA_DPDK_CFG="dpdk { pci=$(nic_dev_get_dpdk_args); }"
+
+	export TPA_CFG="$TPA_NET_CFG $TPA_DPDK_CFG $TPA_CFG"
+
+	if [ -z "$TPA_RUN_QUIET" ]; then
+		echo ":: TPA_CFG='$TPA_CFG'"
+		echo ":: cmd=$cmd"
+	fi
+
+	log_tpa_cfg
+}
+
+run()
+{
+	# enable shared hugepage dump
+	echo 0x7b > /proc/self/coredump_filter
+
+	if [ "$gdb" ]; then
+		gdb --args $cmd
+	else
+		$cmd
+	fi
+}
+
+cmd="$@"
+eth_dev_init
+tpa_cfg
+run

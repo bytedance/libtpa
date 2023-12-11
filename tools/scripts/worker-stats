@@ -1,0 +1,66 @@
+#!/usr/bin/ruby
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+#
+# XXX: there are tons of duplicate code with sock-stats
+#
+
+require 'pp'
+
+def worker_stats_parse
+	worker_stats = {}
+
+	worker = nil
+	%x[ tsh worker ].split("\n").each { |line|
+		case line
+		when /^worker (\d+)/
+			worker = $1
+			worker_stats[worker] = {}
+		when /([a-zA-Z_.]+)\s+:\s+(\d+)/
+			worker_stats[worker][$1] = $2
+		end
+	}
+
+	worker_stats
+end
+
+def worker_stats_diff(curr, last)
+	delta = {}
+
+	curr.each { |worker, stats|
+		stats.each { |k, v|
+			next if not v =~ /^\d+$/
+			next if not last[worker] or not last[worker][k]
+
+			delta[worker] ||= {}
+			delta[worker][k] = stats[k].to_i - last[worker][k].to_i
+		}
+	}
+
+	delta
+end
+
+def worker_stats_print(worker_stats, delta)
+	printf "%-6s %-14s %-14s\n", "worker", "usage.tpa", "usage.app"
+
+	delta.each { |worker, stats|
+		printf "%-6d %-14.2f %-14.2f\n", worker,
+		       stats['cycles.busy'] * 100.0 / stats['cycles.total'],
+		       stats['cycles.outside_worker'] * 100.0 / stats['cycles.total']
+	}
+	puts
+end
+
+$worker_stats_last = worker_stats_parse
+
+loop {
+	sleep 1
+
+	$worker_stats = worker_stats_parse
+	delta = worker_stats_diff $worker_stats, $worker_stats_last
+
+	worker_stats_print $worker_stats, delta
+	$worker_stats_last = $worker_stats
+}

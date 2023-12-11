@@ -1,0 +1,71 @@
+From 1acd1c03c1369cbc5a8d1f3a56b526d90e29d3e4 Mon Sep 17 00:00:00 2001
+From: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+Date: Fri, 24 Sep 2021 10:59:03 +0800
+Subject: [PATCH] net/mlx5: add the control for FDB default rule
+
+Signed-off-by: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+---
+ drivers/net/mlx5/mlx5.c         | 6 ++++++
+ drivers/net/mlx5/mlx5.h         | 1 +
+ drivers/net/mlx5/mlx5_trigger.c | 2 +-
+ 3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/mlx5/mlx5.c b/drivers/net/mlx5/mlx5.c
+index ca3667a469..5c9ec6ec2b 100644
+--- a/drivers/net/mlx5/mlx5.c
++++ b/drivers/net/mlx5/mlx5.c
+@@ -174,6 +174,9 @@
+ /* Decap will be used or not. */
+ #define MLX5_DECAP_EN "decap_en"
+ 
++/* Device parameter to create the fdb default rule in PMD */
++#define MLX5_FDB_DEFAULT_EN "fdb_def_en"
++
+ /* Shared memory between primary and secondary processes. */
+ struct mlx5_shared_data *mlx5_shared_data;
+ 
+@@ -1578,6 +1581,8 @@ mlx5_args_check(const char *key, const char *val, void *opaque)
+ 		config->sys_mem_en = !!tmp;
+ 	} else if (strcmp(MLX5_DECAP_EN, key) == 0) {
+ 		config->decap_en = !!tmp;
++	} else if (strcmp(MLX5_FDB_DEFAULT_EN, key) == 0) {
++		config->fdb_def_en = !!tmp;
+ 	} else {
+ 		DRV_LOG(WARNING, "%s: unknown parameter", key);
+ 		rte_errno = EINVAL;
+@@ -1638,6 +1643,7 @@ mlx5_args(struct mlx5_dev_config *config, struct rte_devargs *devargs)
+ 		MLX5_RECLAIM_MEM,
+ 		MLX5_SYS_MEM_EN,
+ 		MLX5_DECAP_EN,
++		MLX5_FDB_DEFAULT_EN,
+ 		NULL,
+ 	};
+ 	struct rte_kvargs *kvlist;
+diff --git a/drivers/net/mlx5/mlx5.h b/drivers/net/mlx5/mlx5.h
+index 041240e6fe..17d01f963c 100644
+--- a/drivers/net/mlx5/mlx5.h
++++ b/drivers/net/mlx5/mlx5.h
+@@ -227,6 +227,7 @@ struct mlx5_dev_config {
+ 	unsigned int sys_mem_en:1; /* The default memory allocator. */
+ 	unsigned int decap_en:1; /* Whether decap will be used or not. */
+ 	unsigned int dv_miss_info:1; /* restore packet after partial hw miss */
++	unsigned int fdb_def_en:1; /* Create FDB default rule in PMD. */
+ 	struct {
+ 		unsigned int enabled:1; /* Whether MPRQ is enabled. */
+ 		unsigned int stride_num_n; /* Number of strides. */
+diff --git a/drivers/net/mlx5/mlx5_trigger.c b/drivers/net/mlx5/mlx5_trigger.c
+index bd029154f8..be9ffddb57 100644
+--- a/drivers/net/mlx5/mlx5_trigger.c
++++ b/drivers/net/mlx5/mlx5_trigger.c
+@@ -1248,7 +1248,7 @@ mlx5_traffic_enable(struct rte_eth_dev *dev)
+ 		}
+ 		mlx5_txq_release(dev, i);
+ 	}
+-	if (priv->config.dv_esw_en && !priv->config.vf) {
++	if (priv->config.fdb_def_en && priv->config.dv_esw_en && !priv->config.vf) {
+ 		if (mlx5_flow_create_esw_table_zero_flow(dev))
+ 			priv->fdb_def_rule = 1;
+ 		else
+-- 
+2.11.0
+
