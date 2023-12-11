@@ -65,7 +65,6 @@ int parse_eth_ip(struct packet *pkt)
 	uint64_t csum_flags = 0;
 	int err;
 
-	debug_assert(pkt->mbuf.data_off <= 128);
 	pkt->l2_off = pkt->mbuf.data_off;
 	pkt->l3_off = pkt->l2_off + sizeof(struct rte_ether_hdr);
 

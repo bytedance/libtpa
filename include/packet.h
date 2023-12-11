@@ -38,9 +38,9 @@ struct packet {
 
 	uint16_t flags;
 	uint8_t  wid;
-	uint8_t l2_off;
-	uint8_t l3_off;
-	uint8_t l4_off;
+	uint16_t l2_off;
+	uint16_t l3_off;
+	uint16_t l4_off;
 
 	/*
 	 * The tcp payload offset; unlike other offsets, it's not fixed.
