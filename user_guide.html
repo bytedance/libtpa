@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Libtpa User Guide &mdash; Libtpa  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Libtpa Programming Guide" href="prog_guide.html" />
+    <link rel="prev" title="Libtpa Quick Start" href="quick_start.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Libtpa
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Libtpa Quick Start</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Libtpa User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#embedded-tcp-stack">Embedded TCP Stack</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#acceleration-for-specific-tcp-connections">Acceleration for Specific TCP Connections</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-libtpa">Build Libtpa</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-libtpa-applications">Run Libtpa Applications</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#libtpa-builtin-applications">Libtpa Builtin Applications</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#run-multiple-libtpa-instances">Run Multiple Libtpa Instances</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#loopback-mode">Loopback Mode</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#tools">Tools</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sock-list">sock list</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sock-stats">sock stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sock-trace">sock trace</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#worker-stats">worker stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mem-stats">mem stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cfg">cfg</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neigh">neigh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#version">version</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#config-options">Config Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#feature-list">Feature List</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#supported-hardwares">Supported Hardwares</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="prog_guide.html">Libtpa Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Libtpa Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="redis.html">Redis with Libtpa</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Libtpa</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Libtpa User Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/user_guide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="libtpa-user-guide">
+<h1>Libtpa User Guide<a class="headerlink" href="#libtpa-user-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Libtpa(Transport Protocol Acceleration) is a DPDK based userspace TCP
+stack implementation.</p>
+<p>Libtpa is fast. It boosts the <a class="reference internal" href="redis.html#redis-libtpa"><span class="std std-ref">redis benchmark</span></a>
+performance more than 5 times, from 0.21m rps to 1.14m rps. Meanwhile, the
+p99 latency is greatly decreased, from 0.815ms to 0.159ms.</p>
+<p>Libtpa is also sort of stable, all kudos to the comprehensive testing.
+Libtpa has more than 200 tests. Together with the <a class="reference internal" href="internals.html#matrix-shell"><span class="std std-ref">testing arguments
+matrix</span></a>, it can result in a big variety of test cases.
+Therefore, most of the bugs are captured before deployment.</p>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p>Although libtpa has been tested heavily inside Bytedance <strong>data center</strong>,
+it’s still recommended to run as much testing as you can before deployment,
+for libtpa is still under active development and it’s just v1.0-<strong>rc0</strong>
+being released. Tons of changes have been made since the last stable release.</p>
+</div>
+<div class="section" id="embedded-tcp-stack">
+<h3>Embedded TCP Stack<a class="headerlink" href="#embedded-tcp-stack" title="Permalink to this headline">¶</a></h3>
+<p>There are two things that might be kind of special about libtpa.</p>
+<p>The first one is that libtpa is an embedded TCP stack implementation that
+supports run-to-completion mode only. It creates no datapath thread
+by itself. Instead, it’s embedded in the application thread.</p>
+</div>
+<div class="section" id="acceleration-for-specific-tcp-connections">
+<h3>Acceleration for Specific TCP Connections<a class="headerlink" href="#acceleration-for-specific-tcp-connections" title="Permalink to this headline">¶</a></h3>
+<p>The other special thing about libtpa is that it’s not a standalone
+TCP/IP stack implementation. Instead, it lives together with the host
+TCP/IP stack: libtpa just takes control of the specific TCP connections
+needed to be accelerated. Taking redis as an example, if redis is
+accelerated by libtpa, then all TCP connections belonging to redis will
+go to libtpa.  All other connections (TCP or none TCP, such as UDP)
+go to where it belongs: the host stack.</p>
+<p>There is a huge advantage about that. If libtpa crashes, except the
+application accelerated by libtpa is affected, none other workloads
+would be affected.</p>
+<p>Having said that, it requires some special support from NIC. Section
+<a class="reference internal" href="#requirements"><span class="std std-ref">Requirements</span></a> gives a bit more information about
+that.</p>
+</div>
+</div>
+<div class="section" id="requirements">
+<span id="id1"></span><h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>Due to the novel design described above (to just accelerate some specific
+TCP connections), libtpa requires
+<a class="reference external" href="https://doc.dpdk.org/guides/howto/flow_bifurcation.html">flow bifurcation</a>
+support from NIC.</p>
+<p>Most NICs have flow bifurcation support with the help of SR-IOV.
+But they require some internal DPDK/Linux patches (or even firmwares)
+to satisfy the libtpa needs.</p>
+<p>On the other hand, Mellanox NIC has native flow bifurcation support
+that doesn’t require SR-IOV. More importantly, it doesn’t require any
+internal stuff. Libtpa works well with Mellanox NIC just with the
+upstream DPDK.</p>
+<p>Therefore, libtpa currently only supports Mellanox NIC.</p>
+</div>
+<div class="section" id="build-libtpa">
+<h2>Build Libtpa<a class="headerlink" href="#build-libtpa" title="Permalink to this headline">¶</a></h2>
+<p><strong>Install Mellanox OFED:</strong></p>
+<p>Libtpa currently supports Mellanox NIC only. The Mellanox OFED has to
+be installed.  It can be downloaded from
+<a class="reference external" href="https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/">here</a>.
+Then run below command to install it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">mlnxofedinstall</span> <span class="o">--</span><span class="n">dpdk</span> <span class="o">--</span><span class="n">upstream</span><span class="o">-</span><span class="n">libs</span>
+</pre></div>
+</div>
+<p><strong>Install Dependencies:</strong></p>
+<p>For debian system, you can simply run following command at the
+libtpa source dir to install the dependencies:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">buildtools</span><span class="o">/</span><span class="n">install</span><span class="o">-</span><span class="n">dep</span><span class="o">.</span><span class="n">deb</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>Or below if a complain about low meson version is met afterwards:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>./buildtools/install-dep.deb.sh --with-meson
+</pre></div>
+</div>
+<p><strong>Build Libtpa</strong></p>
+<p>With all setup, you can build libtpa simply by:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span>
+<span class="n">make</span> <span class="n">install</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It’s not needed to build DPDK alone. Libtpa will build DPDK when
+necessary, say when it’s not built yet or when the build mode is
+changed. If you want to rebuild DPDK, you could:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">distclean</span>
+<span class="n">make</span>
+</pre></div>
+</div>
+<p>Moreover, you don’t even need to clone DPDK first. Libtpa will do it
+for you. Therefore, what all you need is to execute the <code class="docutils literal notranslate"><span class="pre">make</span></code> command.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Libtpa currently supports DPDK v19.11, v20.11 and v22.11. Both v19.11
+and v20.11 are tested heavily inside Bytedance. V20.11.3 is the default
+DPDK version being used. V22.11 support was just added recently.</p>
+<p>If you want to switch to another DPDK version we currently support, say
+v22.11, you could:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">DPDK_VERSION</span><span class="o">=</span><span class="n">v22</span><span class="o">.</span><span class="mi">11</span>
+<span class="n">make</span>
+<span class="n">make</span> <span class="n">install</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="run-libtpa-applications">
+<h2>Run Libtpa Applications<a class="headerlink" href="#run-libtpa-applications" title="Permalink to this headline">¶</a></h2>
+<p>Before running a libtpa application, hugepages need to be allocated first.
+Here is a <a class="reference external" href="https://doc.dpdk.org/guides/linux_gsg/sys_reqs.html#use-of-hugepages-in-the-linux-environment">guide from DPDK</a>.
+After that, you are ready to run libtpa applications. And there are
+two ways.</p>
+<p><strong>Run directly with the correct configs</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># cat tpa.cfg
+net {
+    name = eth0
+    ip   = 192.168.1.10
+    gw   = 192.168.1.1
+    mask = 255.255.255.0
+}
+
+dpdk {
+    pci = 0000:00:05.0
+}
+
+# swing 192.168.1.12 22
+EAL: Detected CPU lcores: 8
+EAL: Detected NUMA nodes: 1
+EAL: Detected static linkage of DPDK
+EAL: Selected IOVA mode &#39;PA&#39;
+EAL: Probe PCI driver: mlx5_pci (15b3:1018) device: 0000:00:05.0 (socket -1)
+mlx5_net: Default miss action is not supported.
+:: connecting to 192.168.1.12:22 ... [connected]
+&gt; &lt; SSH-2.0-OpenSSH_9.0
+</pre></div>
+</div>
+<p>If you see something similar like above, it means you are all set up and
+ready to write and run your own libtpa applications.</p>
+<p><strong>Run with the libtpa wrapper</strong></p>
+<p>There is a more convenient way to do this: run it with the libtpa wrapper.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># tpa run swing 192.168.1.12 22
+:: TPA_CFG=&#39;net { name=eth0; mac=fa:16:3e:30:4f:90; ip=192.168.1.10; mask=255.255.255.0; \
+               gw=192.168.1.1; ip6=fe80::f816:3eff:fe30:4f90/64; } dpdk { pci=0000:00:05.0; } &#39;
+:: cmd=swing 192.168.1.12 22
+EAL: Detected CPU lcores: 8
+EAL: Detected NUMA nodes: 1
+EAL: Detected static linkage of DPDK
+EAL: Selected IOVA mode &#39;PA&#39;
+EAL: Probe PCI driver: mlx5_pci (15b3:1018) device: 0000:00:05.0 (socket -1)
+mlx5_net: Default miss action is not supported.
+:: connecting to 192.168.1.12:22 ... [connected]
+&gt; &lt; SSH-2.0-OpenSSH_9.0
+</pre></div>
+</div>
+<p>As you can see, it fills the correct ipv4 cfgs for you. Moreover, it also
+sets ipv6 configs when it exists.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">run</span></code> selects the first valid eth (when it is a Mellanox device and
+has at least one IP address). If you have multiple valid eth devices, you
+can control which one to use with the <code class="docutils literal notranslate"><span class="pre">TPA_ETH_DEV</span></code> env var:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">TPA_ETH_DEV</span><span class="o">=</span><span class="n">eth1</span> <span class="n">tpa</span> <span class="n">run</span> <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="libtpa-builtin-applications">
+<h3>Libtpa Builtin Applications<a class="headerlink" href="#libtpa-builtin-applications" title="Permalink to this headline">¶</a></h3>
+<p>Libtpa ships few applications, for testing and debug purposes. It’s also
+a good source for learning how to program with libtpa customized APIs.
+You can check <a class="reference internal" href="prog_guide.html#prog-guide"><span class="std std-ref">here</span></a> for a detailed programming guide.</p>
+<p><strong>swing</strong></p>
+<p>It’s a debug tool quite similar to telnet. It’s a handy tool to check
+whether libtpa (or the networking) works or not. Meanwhile, it’s also
+a short example on how to write a libtpa client program. Above section
+already presents some examples.</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Swing Usage</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># swing -h
+usage: swing [options] server port
+
+Supported options are:
+  -z                    enable zero copy write
+</pre></div>
+</div>
+</div>
+<p><strong>techo</strong></p>
+<p>It’s another debug tool, which simply echos back what it receives from the
+client. It’s normally used together with swing, to check the libtpa TCP
+connection. Like swing, it can also serve as an example on how to write
+a libtpa server program. The usage is simple: just provide the port to
+listen on.</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">Techo Example</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># techo 5678
+EAL: Detected CPU lcores: 8
+EAL: Detected NUMA nodes: 1
+EAL: Detected static linkage of DPDK
+EAL: Selected IOVA mode &#39;PA&#39;
+EAL: Probe PCI driver: mlx5_pci (15b3:1018) device: 0000:00:05.0 (socket -1)
+mlx5_net: Default miss action is not supported.
+:: listening on port 5678 ...
+</pre></div>
+</div>
+</div>
+<p><strong>tperf</strong></p>
+<p>As the name sugguests, it’s a benchmark tool. Below is the usage. You
+can check <a class="reference internal" href="#loopback-mode"><span class="std std-ref">loopback mode</span></a> section for examples.</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">Tperf Usage</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># tperf -h
+usage: tperf [options]
+
+       tperf -s [options]
+       tperf -t test [options]
+
+Tperf, a libtpa performance benchmark.
+
+Client options:
+  -c server         run in client mode (the default mode) and specifies the server
+                    address (default: 127.0.0.1)
+  -t test           specifies the test mode, which is listed below
+  -p port           specifies the port to connect to (default: 4096)
+  -d duration       specifies the test duration (default: 10s)
+  -m message_size   specifies the message size (default: 1000)
+  -n nr_thread      specifies the thread count (default: 1)
+  -i                do integrity verification (default: off)
+  -C nr_conn        specifies the connection to be created for each thread (default: 1)
+  -W 0|1            disable/enable zero copy write (default: on)
+  -S start_cpu      specifies the starting cpu to bind
+
+Server options:
+  -s                run in server mode
+  -n nr_thread      specifies the thread count (default: 1)
+  -l addr           specifies local address to listen on
+  -p port           specifies the port to listen on (default: 4096)
+  -S start_cpu      specifies the starting cpu to bind
+
+The supported test modes are:
+  * read            read data from the server end
+  * write           write data to the server end
+  * rw              test read and write simultaneously
+  * rr              send a request (with payload) to the server and
+                    expects a response will be returned from the server end
+  * crr             basically does the same thing like rr, except that a
+                     connection is created for each request
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="run-multiple-libtpa-instances">
+<h3>Run Multiple Libtpa Instances<a class="headerlink" href="#run-multiple-libtpa-instances" title="Permalink to this headline">¶</a></h3>
+<p>You can run as many libtpa instances as the hardware resources permit.
+Libtpa uses <code class="docutils literal notranslate"><span class="pre">TPA_ID</span></code> as the unique identifier of a specific instance.
+This ID could be generated by libtpa at runtime, with a pattern of
+“program_name[$num_postfix]”. Taking swing as an example, if no swing instance
+has been running, the ID then will be “swing”. If one more swing
+instance starts, it then will be “swing1”, and so on.</p>
+<p>Having said that, it’s still recommended to set the TPA_ID by your own:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">TPA_ID</span><span class="o">=</span><span class="n">client</span> <span class="n">tpa</span> <span class="n">run</span> <span class="n">swing</span> <span class="o">....</span>
+</pre></div>
+</div>
+<p>That is because most of libtpa tools require the TPA_ID. Therefore,
+specifying the TPA_ID by yourself gives you a bit more control, especially
+when you want to run multiple instances of the same application.</p>
+</div>
+<div class="section" id="loopback-mode">
+<span id="id2"></span><h3>Loopback Mode<a class="headerlink" href="#loopback-mode" title="Permalink to this headline">¶</a></h3>
+<p>Libtpa supports loopback mode differently compared with the <code class="docutils literal notranslate"><span class="pre">lo</span></code> interface.
+Again, it requires physical loopback support from the NIC. That said, the
+packet will actually go into the NIC and then go back to the same host again.</p>
+<p>Below is an example demonstrating that. We run two libtpa applications on
+the same host, one is the tperf server, and the other one is the tperf client.</p>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text">Tperf Server</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># TPA_ID=server taskset -c 1 tperf -s -n 1
+EAL: Detected 96 lcore(s)
+EAL: Detected 2 NUMA nodes
+EAL: Detected static linkage of DPDK
+EAL: Selected IOVA mode &#39;PA&#39;
+EAL: No available hugepages reported in hugepages-1048576kB
+EAL: Probing VFIO support...
+EAL: Probe PCI driver: mlx5_pci (15b3:1017) device: 0000:5e:00.1 (socket 0)
+mlx5_pci: Default miss action is not supported.
+</pre></div>
+</div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">Tperf Client</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># TPA_ID=client taskset -c 2 tperf -c 127.0.0.1 -t rr -m 1
+EAL: Detected 96 lcore(s)
+EAL: Detected 2 NUMA nodes
+EAL: Detected static linkage of DPDK
+EAL: Selected IOVA mode &#39;PA&#39;
+EAL: No available hugepages reported in hugepages-1048576kB
+EAL: Probing VFIO support...
+EAL: Probe PCI driver: mlx5_pci (15b3:1017) device: 0000:5e:00.1 (socket 0)
+mlx5_pci: Default miss action is not supported.
+    0 RR .0 min=4.10us avg=4.43us max=96.51us count=224809
+    1 RR .0 min=4.10us avg=4.38us max=79.36us count=228426
+    2 RR .0 min=4.10us avg=4.36us max=84.22us count=229371
+    3 RR .0 min=4.10us avg=4.36us max=135.17us count=229385
+    4 RR .0 min=4.10us avg=4.36us max=81.41us count=229366
+    5 RR .0 min=4.10us avg=4.36us max=77.31us count=229459
+    6 RR .0 min=4.10us avg=4.36us max=78.08us count=229349
+    7 RR .0 min=4.10us avg=4.36us max=105.47us count=229238
+    8 RR .0 min=4.10us avg=4.36us max=77.82us count=229565
+    9 RR .0 min=4.10us avg=4.36us max=87.04us count=229363
+
+---
+ 0 nr_conn=1 nr_zero_io_conn=0
+</pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Apparently, libtpa will not be able to connect to the loopback
+TCP connections if the other end is Linux kernel TCP/IP stack.
+Above works only because both the client and server are running
+with libtpa.</p>
+</div>
+</div>
+</div>
+<div class="section" id="tools">
+<h2>Tools<a class="headerlink" href="#tools" title="Permalink to this headline">¶</a></h2>
+<p>As a DPDK based userspace stack implementation, it’s proud to say
+that libtpa has a rich set of tools.</p>
+<div class="section" id="sock-list">
+<h3>sock list<a class="headerlink" href="#sock-list" title="Permalink to this headline">¶</a></h3>
+<p>tpa sock-list (or <code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">sk</span></code> in short) lists the socks. Some basic usages
+are listed below.</p>
+<p><strong>list active socks</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa sk</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">4</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55569</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">5</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55555</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">6</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55589</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">7</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55609</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+</pre></div>
+</div>
+<p><strong>list all socks, including closed socks</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa sk -a</span>
+<span class="n">sid</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55588</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">closed</span>
+<span class="n">sid</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55586</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">closed</span>
+<span class="n">sid</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55607</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">closed</span>
+<span class="n">sid</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55614</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">closed</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">4</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55569</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">5</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55555</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">6</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55589</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">7</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55609</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+</pre></div>
+</div>
+<p id="sock-latency"><strong>list socks with (very) detailed info</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">sk</span> <span class="pre">-v</span></code> dumps very detailed info for each sock. Actually, it’s
+so verbose that it might be very hard to find something useful with
+a glimpse. Instead, you could combine it with a grep command to filter
+out the parts you care most about. For example, below combo shows read
+and write latencies measured by libtpa:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa sk -v | grep -e sid -e _lat</span>
+<span class="n">sid</span><span class="o">=</span><span class="mi">0</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">54157</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span> <span class="n">worker</span><span class="o">=</span><span class="mi">0</span> <span class="n">established</span>
+        <span class="n">write_lat</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">avg</span><span class="o">/</span><span class="nb">max</span><span class="p">)</span>       <span class="p">:</span> <span class="mf">0.0</span><span class="o">/</span><span class="mf">16.1</span><span class="n">us</span>
+        <span class="n">write_lat</span><span class="o">.</span><span class="n">xmit</span><span class="p">(</span><span class="n">avg</span><span class="o">/</span><span class="nb">max</span><span class="p">)</span>         <span class="p">:</span> <span class="mf">0.1</span><span class="o">/</span><span class="mf">52.5</span><span class="n">us</span>
+        <span class="n">write_lat</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">avg</span><span class="o">/</span><span class="nb">max</span><span class="p">)</span>     <span class="p">:</span> <span class="mf">4.2</span><span class="o">/</span><span class="mf">102.1</span><span class="n">us</span>
+        <span class="n">read_lat</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">avg</span><span class="o">/</span><span class="nb">max</span><span class="p">)</span>        <span class="p">:</span> <span class="mf">0.1</span><span class="o">/</span><span class="mf">16.1</span><span class="n">us</span>
+        <span class="n">read_lat</span><span class="o">.</span><span class="n">drain</span><span class="p">(</span><span class="n">avg</span><span class="o">/</span><span class="nb">max</span><span class="p">)</span>         <span class="p">:</span> <span class="mf">0.2</span><span class="o">/</span><span class="mf">49.6</span><span class="n">us</span>
+        <span class="n">read_lat</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">avg</span><span class="o">/</span><span class="nb">max</span><span class="p">)</span>      <span class="p">:</span> <span class="mf">0.2</span><span class="o">/</span><span class="mf">49.7</span><span class="n">us</span>
+        <span class="n">read_lat</span><span class="o">.</span><span class="n">last_write</span><span class="p">(</span><span class="n">avg</span><span class="o">/</span><span class="nb">max</span><span class="p">)</span>    <span class="p">:</span> <span class="mf">4.8</span><span class="o">/</span><span class="mf">102.8</span><span class="n">us</span>
+</pre></div>
+</div>
+<p>Above output deserves some explanation. For write operation, there are
+four stages:</p>
+<ol class="arabic simple">
+<li><p>send data by invoking the tpa write API</p></li>
+<li><p>submit the write request to the sock txq</p></li>
+<li><p>fetch the data from txq, encap with tcp/eth/ip header and send it to NIC</p></li>
+<li><p>get the ack which denotes the data is received by the remote</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">write_lat.submit</span></code> denotes the latency from stage 1 to stage 2.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">write_lat.xmit</span></code> denotes the latency from stage 1 to stage 3.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">write_lat.complete</span></code> denotes the latency from stage 1 to stage 4.</p></li>
+</ul>
+<p>And there are four similar stages for read operation:</p>
+<ol class="arabic simple">
+<li><p>receive the packet from NIC</p></li>
+<li><p>go through the libtpa TCP stack and deliver it to the sock rxq</p></li>
+<li><p>APP reads the data by the libtpa read API</p></li>
+<li><p>APP finishes the processing of the data by invoking the corresponding
+iov.iov_read_done callback.</p></li>
+</ol>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">read_lat.submit</span></code> denotes the latency from stage 1 to stage 2.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">read_lat.drain</span></code> denotes the latency from stage 1 to stage 3.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">read_lat.complete</span></code> denotes the latency from stage 1 to stage 4.</p></li>
+</ul>
+</div>
+<div class="section" id="sock-stats">
+<h3>sock stats<a class="headerlink" href="#sock-stats" title="Permalink to this headline">¶</a></h3>
+<p>tpa sock-stats (or <code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">ss</span></code> in short) shows some key sock stats in a
+real-time view, say rx/tx rated, etc:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa ss</span>
+<span class="n">sid</span>    <span class="n">state</span>        <span class="n">rx</span><span class="o">.</span><span class="n">mpps</span>   <span class="n">rx</span><span class="o">.</span><span class="n">MB</span><span class="o">/</span><span class="n">s</span>   <span class="n">tx</span><span class="o">.</span><span class="n">mpps</span>   <span class="n">tx</span><span class="o">.</span><span class="n">MB</span><span class="o">/</span><span class="n">s</span>   <span class="n">retrans</span><span class="o">.</span><span class="n">kpps</span> <span class="n">retrans</span><span class="o">.</span><span class="n">KB</span><span class="o">/</span><span class="n">s</span> <span class="n">connection</span>
+<span class="mi">4</span>      <span class="n">established</span>  <span class="mf">0.116</span>     <span class="mf">115.764</span>   <span class="mf">0.116</span>     <span class="mf">115.764</span>   <span class="mi">0</span>            <span class="mi">0</span>            <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55569</span><span class="o">-</span><span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span>
+<span class="mi">5</span>      <span class="n">established</span>  <span class="mf">0.116</span>     <span class="mf">115.764</span>   <span class="mf">0.116</span>     <span class="mf">115.764</span>   <span class="mi">0</span>            <span class="mi">0</span>            <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55555</span><span class="o">-</span><span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span>
+<span class="mi">6</span>      <span class="n">established</span>  <span class="mf">0.116</span>     <span class="mf">115.764</span>   <span class="mf">0.116</span>     <span class="mf">115.764</span>   <span class="mi">0</span>            <span class="mi">0</span>            <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55589</span><span class="o">-</span><span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span>
+<span class="mi">7</span>      <span class="n">established</span>  <span class="mf">0.116</span>     <span class="mf">115.765</span>   <span class="mf">0.116</span>     <span class="mf">115.765</span>   <span class="mi">0</span>            <span class="mi">0</span>            <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">55609</span><span class="o">-</span><span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span><span class="p">:</span><span class="mi">4096</span>
+<span class="n">total</span>  <span class="mi">4</span>            <span class="mf">0.463</span>     <span class="mf">463.058</span>   <span class="mf">0.463</span>     <span class="mf">463.058</span>   <span class="mi">0</span>            <span class="mi">0</span>            <span class="o">-</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="sock-trace">
+<span id="st-tool"></span><h3>sock trace<a class="headerlink" href="#sock-trace" title="Permalink to this headline">¶</a></h3>
+<p>tpa sock-trace (or <code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">st</span></code> in short) is the most handy (and yet the
+most powerful) tool libtpa provides. The sock trace implementation in
+libtpa is so lightweight that it’s enabled by default. Therefore, we
+could always know what’s exactly going on under the hoods.</p>
+<p>To demonstrates what a trace looks like, let’s run the swing first:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># TPA_ID=client swing 127.0.0.1 5678</span>
+<span class="n">EAL</span><span class="p">:</span> <span class="n">Detected</span> <span class="mi">8</span> <span class="n">lcore</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="n">EAL</span><span class="p">:</span> <span class="n">Detected</span> <span class="mi">1</span> <span class="n">NUMA</span> <span class="n">nodes</span>
+<span class="n">EAL</span><span class="p">:</span> <span class="n">Detected</span> <span class="n">static</span> <span class="n">linkage</span> <span class="n">of</span> <span class="n">DPDK</span>
+<span class="n">EAL</span><span class="p">:</span> <span class="n">Selected</span> <span class="n">IOVA</span> <span class="n">mode</span> <span class="s1">&#39;PA&#39;</span>
+<span class="n">EAL</span><span class="p">:</span> <span class="n">No</span> <span class="n">available</span> <span class="n">hugepages</span> <span class="n">reported</span> <span class="ow">in</span> <span class="n">hugepages</span><span class="o">-</span><span class="mi">1048576</span><span class="n">kB</span>
+<span class="n">EAL</span><span class="p">:</span> <span class="n">Probing</span> <span class="n">VFIO</span> <span class="n">support</span><span class="o">...</span>
+<span class="n">EAL</span><span class="p">:</span> <span class="n">Probe</span> <span class="n">PCI</span> <span class="n">driver</span><span class="p">:</span> <span class="n">mlx5_pci</span> <span class="p">(</span><span class="mi">15</span><span class="n">b3</span><span class="p">:</span><span class="mi">1018</span><span class="p">)</span> <span class="n">device</span><span class="p">:</span> <span class="mi">0000</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mf">05.0</span> <span class="p">(</span><span class="n">socket</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">mlx5_pci</span><span class="p">:</span> <span class="n">Default</span> <span class="n">miss</span> <span class="n">action</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">supported</span><span class="o">.</span>
+<span class="p">::</span> <span class="n">connecting</span> <span class="n">to</span> <span class="mf">127.0</span><span class="o">.</span><span class="mf">0.1</span><span class="p">:</span><span class="mi">5678</span> <span class="o">...</span> <span class="p">[</span><span class="n">connected</span><span class="p">]</span>
+<span class="o">&gt;</span> <span class="n">hello</span> <span class="n">world</span>
+<span class="o">&lt;</span> <span class="n">hello</span> <span class="n">world</span>
+
+<span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Then we run below to check the trace:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>    # tpa st client -o relative-time
+    :: /var/run/tpa/client/trace/socktrace-2542693 0        8320   2023-12-04.16:28:44.914847   0      192.168.1.10:55895 -&gt; 192.168.1.10:5678
+    0.000000 192.168.1.10:55895 192.168.1.10:5678 worker=0
+    0.003519 xmit syn: snd_isn=1406571739 rto=0 rxq_size=2048 txq_size=512
+1=&gt; 0.003519 xmit pkt: seq=0 len=0 hdr_len=78 nr_seg=1 ts=3 snd_wnd=0 cwnd=0 ssthresh=0 |  SYN
+2=&gt; 0.004599 tcp_rcv: seq=0 len=0 nr_seg=1 wnd=65535 .-rcv_nxt=+1406571912 | ack=1 .-snd_una=+1 .-snd_nxt=+0 | ACK SYN
+    0.004599        &gt; ts.val=3657668934 ts_recent=0 last_ack_sent=2888395384 ts_ecr=637298365
+    0.004599        &gt; rtt=1080 srtt=8640 rttvar=2160 rto=101080
+    0.004599 state =&gt; established rxq_left=0 txq_left=0
+3=&gt; 0.004599 xmit pkt: seq=1 len=0 hdr_len=66 nr_seg=1 ts=4 snd_wnd=65535 cwnd=16384 ssthresh=1048576 |  ACK
+    0.004599 xmit data: seq=1 off=0 len=12 budget=16384 | NON-ZWRITE
+4=&gt; 2.885346 xmit pkt: seq=1 len=12 hdr_len=66 nr_seg=2 ts=2817 snd_wnd=65535 cwnd=16384 ssthresh=1048576 |  ACK
+    2.885346 txq update: inflight=1 to_send=0 free=511
+    2.886416 tcp_rcv: seq=1 len=0 nr_seg=1 wnd=2799 .-rcv_nxt=+0 | ack=13 .-snd_una=+12 .-snd_nxt=+12 | ACK
+    2.886416        &gt; ts.val=3657671748 ts_recent=3657671748 last_ack_sent=1 ts_ecr=637298365
+    2.886416        &gt; [0] una=13 partial_ack=0 desc.seq=1 desc.len=12 latency=1070 acked_len=12 | NON-ZWRITE
+    2.886416 txq update: inflight=0 to_send=0 free=512
+    2.886416        &gt; rtt=1070 srtt=8630 rttvar=1630 rto=101078
+5=&gt; 2.886416 tcp_rcv: seq=1 len=12 nr_seg=1 wnd=2800 .-rcv_nxt=+0 | ack=13 .-snd_una=+0 .-snd_nxt=+12 | ACK
+    2.886416        &gt; enqueued.len=12 rcv_wnd=2867188 rxq_rxq_readable_count=1 rxq_free_count=2047
+    2.886416        &gt; ts.val=3657671748 ts_recent=3657671748 last_ack_sent=1 ts_ecr=637298365
+    2.886416 xmit pkt: seq=13 len=0 hdr_len=66 nr_seg=1 ts=2818 snd_wnd=2867200 cwnd=16384 ssthresh=1048576 |  ACK
+</pre></div>
+</div>
+<p>The line mark 1 to 3 denotes the typical TCP handshake process. At line
+mark 4, 12 bytes of TCP payload (“hello world”) have been sent. And at
+line mark 5, we got the reply (from techo).</p>
+<p>As you can see, we can even get the precise latency from the trace. Note
+that swing is a debug tool and there is a 1ms delay (usleep(1000)) for
+each loop. That’s the reason why the above latency looks quite big.</p>
+<p>Libtpa does a bit more to make the trace more powerful: libtpa archives
+the trace automatically when it gets recovered from something abnormal,
+such as retrans. Besides that, libtpa notes down the recovery time:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa st | grep rto | head</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace194</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.070575</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">107.447</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace193</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.068062</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">214.160</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace192</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.065471</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">214.160</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace191</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.062957</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">234.977</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace190</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.060359</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">214.160</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace189</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.057774</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">214.160</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace188</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.055150</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">184.099</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace187</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.052640</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">178.073</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace186</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.050103</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">181.962</span><span class="n">ms</span>
+<span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace185</span>   <span class="o">...</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mf">04.16</span><span class="p">:</span><span class="mi">55</span><span class="p">:</span><span class="mf">00.047533</span>  <span class="o">...</span> <span class="n">rto</span><span class="o">-</span><span class="mf">179.440</span><span class="n">ms</span>
+</pre></div>
+</div>
+<p>Then you can run below command to check what exactly happened:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tpa</span> <span class="n">st</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">tpa</span><span class="o">/</span><span class="n">client</span><span class="o">/</span><span class="n">socktrace194</span>
+</pre></div>
+</div>
+<p>The sock trace is so convenient and powerful that libtpa doesn’t even
+have tools like tcpdump.</p>
+</div>
+<div class="section" id="worker-stats">
+<h3>worker stats<a class="headerlink" href="#worker-stats" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">worker</span></code> is the processing unit in libtpa: all TCP packets are processed
+there. <code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">worker</span></code> dumps all the worker status:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa worker</span>
+<span class="n">worker</span> <span class="mi">0</span>
+        <span class="n">tid</span>                             <span class="p">:</span> <span class="mi">2483926</span>
+        <span class="n">cycles</span><span class="o">.</span><span class="n">busy</span>                     <span class="p">:</span> <span class="mi">590875284682</span>
+        <span class="n">cycles</span><span class="o">.</span><span class="n">outside_worker</span>           <span class="p">:</span> <span class="mi">379177649718</span>
+        <span class="n">cycles</span><span class="o">.</span><span class="n">total</span>                    <span class="p">:</span> <span class="mi">1595269726942</span>
+        <span class="n">last_run</span>                        <span class="p">:</span> <span class="mf">0.000000</span><span class="n">s</span> <span class="n">ago</span>
+        <span class="n">last_poll</span>                       <span class="p">:</span> <span class="mf">0.000000</span><span class="n">s</span> <span class="n">ago</span>
+        <span class="n">avg_runtime</span>                     <span class="p">:</span> <span class="mf">0.4</span><span class="n">us</span>
+        <span class="n">avg_starvation</span>                  <span class="p">:</span> <span class="mf">0.0</span><span class="n">us</span>
+        <span class="n">max_runtime</span>                     <span class="p">:</span> <span class="mf">10.268</span><span class="n">ms</span>
+        <span class="n">max_starvation</span>                  <span class="p">:</span> <span class="mf">322.983</span><span class="n">ms</span>
+        <span class="n">nr_tsock</span>                        <span class="p">:</span> <span class="mi">4</span>
+        <span class="n">nr_tsock_total</span>                  <span class="p">:</span> <span class="mi">8</span>
+        <span class="n">dev_txq</span><span class="o">.</span><span class="n">size</span>                    <span class="p">:</span> <span class="mi">4096</span>
+        <span class="n">nr_ooo_mbuf</span>                     <span class="p">:</span> <span class="mi">0</span>
+        <span class="n">nr_in_process_mbuf</span>              <span class="p">:</span> <span class="mi">0</span>
+        <span class="n">nr_write_mbuf</span>                   <span class="p">:</span> <span class="mi">0</span>
+        <span class="n">dev_txq</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nr_pkt</span>               <span class="p">:</span> <span class="mi">0</span>
+        <span class="n">dev_rxq</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nr_pkt</span>               <span class="p">:</span> <span class="mi">0</span>
+        <span class="n">TCP_RTO_TIME_OUT</span>                <span class="p">:</span> <span class="mi">48</span>
+        <span class="n">ERR_NO_SOCK</span>                     <span class="p">:</span> <span class="mi">52</span>
+        <span class="n">PKT_RECV</span>                        <span class="p">:</span> <span class="mi">334407737</span>
+        <span class="n">BYTE_RECV</span>                       <span class="p">:</span> <span class="mi">334407349000</span>
+        <span class="n">BYTE_RECV_FASTPATH</span>              <span class="p">:</span> <span class="mi">334407349000</span>
+        <span class="n">PKT_XMIT</span>                        <span class="p">:</span> <span class="mi">334407365</span>
+        <span class="n">BYTE_XMIT</span>                       <span class="p">:</span> <span class="mi">334407357512</span>
+        <span class="n">BYTE_RE_XMIT</span>                    <span class="p">:</span> <span class="mi">24000</span>
+        <span class="n">ZWRITE_FALLBACK_PKTS</span>            <span class="p">:</span> <span class="mi">8</span>
+        <span class="n">ZWRITE_FALLBACK_BYTES</span>           <span class="p">:</span> <span class="mi">512</span>
+        <span class="n">PURE_ACK_IN</span>                     <span class="p">:</span> <span class="mi">20</span>
+        <span class="n">PURE_ACK_OUT</span>                    <span class="p">:</span> <span class="mi">332</span>
+        <span class="n">SYN_XMIT</span>                        <span class="p">:</span> <span class="mi">28</span>
+</pre></div>
+</div>
+<p>Most of them are quite self-explanatory. The <code class="docutils literal notranslate"><span class="pre">starvation</span></code> metric
+denotes the time runs outside the libtpa worker. Sometimes if
+something goes wrong, these metrics might give a hint which part
+(libtpa itself or the application code) is likely wrong.</p>
+</div>
+<div class="section" id="mem-stats">
+<h3>mem stats<a class="headerlink" href="#mem-stats" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">mem</span></code> dumps memory related stats:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa mem</span>
+<span class="n">mempool</span> <span class="n">stats</span>
+<span class="o">=============</span>
+
+            <span class="n">name</span>  <span class="n">total</span>    <span class="n">free</span>     <span class="n">cache</span> <span class="o">...</span>
+ <span class="n">mbuf</span><span class="o">-</span><span class="n">mempool</span><span class="o">-</span><span class="n">n0</span>  <span class="mi">185344</span>   <span class="mi">180728</span>   <span class="mi">0</span><span class="o">/</span><span class="mi">569</span>
+<span class="n">zwrite</span><span class="o">-</span><span class="n">mbuf</span><span class="o">-</span><span class="n">mp</span><span class="o">-</span><span class="mi">0</span><span class="o">-</span><span class="n">n0</span>  <span class="mi">494250</span>   <span class="mi">493737</span>   <span class="mi">0</span><span class="o">/</span><span class="mi">508</span>
+<span class="n">hdr</span><span class="o">-</span><span class="n">mbuf</span><span class="o">-</span><span class="n">mp</span><span class="o">-</span><span class="mi">0</span><span class="o">-</span><span class="n">n0</span>  <span class="mi">185344</span>   <span class="mi">184831</span>   <span class="mi">0</span><span class="o">/</span><span class="mi">499</span>
+
+<span class="n">rte_malloc</span> <span class="n">stats</span>
+<span class="o">================</span>
+
+<span class="n">Heap</span> <span class="nb">id</span><span class="p">:</span><span class="mi">0</span>
+        <span class="n">Heap</span> <span class="n">name</span><span class="p">:</span><span class="n">socket_0</span>
+        <span class="n">Heap_size</span><span class="p">:</span><span class="mi">1073741824</span><span class="p">,</span>
+        <span class="n">Free_size</span><span class="p">:</span><span class="mi">334795136</span><span class="p">,</span>
+        <span class="n">Alloc_size</span><span class="p">:</span><span class="mi">738946688</span><span class="p">,</span>
+        <span class="n">Greatest_free_size</span><span class="p">:</span><span class="mi">334794880</span><span class="p">,</span>
+        <span class="n">Alloc_count</span><span class="p">:</span><span class="mi">447</span><span class="p">,</span>
+        <span class="n">Free_count</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span>
+
+<span class="n">memseg</span> <span class="n">stats</span>
+<span class="o">============</span>
+
+        <span class="n">base</span><span class="o">=</span><span class="mh">0x100200000</span> <span class="n">size</span><span class="o">=</span><span class="mi">1073741824</span> <span class="n">pagesize</span><span class="o">=</span><span class="mi">2097152</span> <span class="n">nr_page</span><span class="o">=</span><span class="mi">512</span> <span class="n">socket</span><span class="o">=</span><span class="mi">0</span> <span class="n">external</span><span class="o">=</span><span class="n">no</span>
+        <span class="n">base</span><span class="o">=</span><span class="mh">0x7f8321197000</span> <span class="n">size</span><span class="o">=</span><span class="mi">536870912</span> <span class="n">pagesize</span><span class="o">=</span><span class="mi">4096</span> <span class="n">nr_page</span><span class="o">=</span><span class="mi">131072</span> <span class="n">socket</span><span class="o">=</span><span class="mi">256</span> <span class="n">external</span><span class="o">=</span><span class="n">yes</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="cfg">
+<h3>cfg<a class="headerlink" href="#cfg" title="Permalink to this headline">¶</a></h3>
+<p>Libtpa is a highly customizable project. You could either customize
+it through the config file or through the <code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">cfg</span></code> tool. For
+example, below command disables TSO:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tpa</span> <span class="n">cfg</span> <span class="nb">set</span> <span class="n">tcp</span><span class="o">.</span><span class="n">tso</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>You can reference <a class="reference internal" href="#config-options"><span class="std std-ref">Config Options</span></a> section for
+more detailed information about config options.</p>
+</div>
+<div class="section" id="neigh">
+<h3>neigh<a class="headerlink" href="#neigh" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">neigh</span></code> dumps neighbors. It dumps both ARP and ICMPv6 neighbors.</p>
+</div>
+<div class="section" id="version">
+<h3>version<a class="headerlink" href="#version" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">-vv</span></code> dumps detailed version information for both the installed
+and running version:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa -vv</span>
+<span class="n">installed</span><span class="p">:</span> <span class="n">v1</span><span class="o">.</span><span class="mi">0</span><span class="o">-</span><span class="n">rc0</span>
+<span class="n">running</span><span class="p">:</span>
+<span class="o">--------</span>
+<span class="n">TPA_ID</span>     <span class="n">pid</span>      <span class="n">program</span>  <span class="n">version</span>   <span class="n">uptime</span>
+<span class="n">client</span>     <span class="mi">2517834</span>  <span class="n">tperf</span>    <span class="n">v1</span><span class="o">.</span><span class="mi">0</span><span class="o">-</span><span class="n">rc0</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mi">04</span> <span class="mi">15</span><span class="p">:</span><span class="mi">20</span><span class="p">:</span><span class="mi">15</span><span class="p">,</span> <span class="n">up</span> <span class="mi">21</span><span class="n">s</span>
+<span class="n">server</span>     <span class="mi">2517867</span>  <span class="n">tperf</span>    <span class="n">v1</span><span class="o">.</span><span class="mi">0</span><span class="o">-</span><span class="n">rc0</span>  <span class="mi">2023</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mi">04</span> <span class="mi">15</span><span class="p">:</span><span class="mi">20</span><span class="p">:</span><span class="mi">28</span><span class="p">,</span> <span class="n">up</span> <span class="mi">9</span><span class="n">s</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="config-options">
+<span id="id3"></span><h2>Config Options<a class="headerlink" href="#config-options" title="Permalink to this headline">¶</a></h2>
+<p><strong>Config File</strong></p>
+<p>Libtpa has a customized config file format. It’s really simple though:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">section_name</span> <span class="p">{</span>
+    <span class="n">key1</span> <span class="o">=</span> <span class="n">val1</span>
+    <span class="n">key2</span> <span class="o">=</span> <span class="n">val2</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>It can also be in compact mode:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">section_name</span> <span class="p">{</span> <span class="n">key1</span> <span class="o">=</span> <span class="n">val1</span><span class="p">;</span> <span class="n">key2</span> <span class="o">=</span> <span class="n">val2</span><span class="p">;</span> <span class="p">}</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There are some things worth noting about the current homemade format:</p>
+<ul>
+<li><p>the semicolon(<code class="docutils literal notranslate"><span class="pre">;</span></code>) is always needed for the compact mode. It’s easy
+to forget the last one.</p></li>
+<li><p>the equal mark(<code class="docutils literal notranslate"><span class="pre">=</span></code>) is a reserved char even for value. Therefore,
+it’s illegal to write something like below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pci</span> <span class="o">=</span> <span class="mi">0000</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mf">05.0</span><span class="p">,</span><span class="n">arg1</span><span class="o">=</span><span class="n">val1</span>
+</pre></div>
+</div>
+<p>In such case, instead, you should use the double quotation mark (note
+that we don’t support single quotation mark):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pci</span> <span class="o">=</span> <span class="s2">&quot;0000:00:05.0,arg1=val1&quot;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+<p><strong>Customize</strong></p>
+<p>There are two ways to do customize before startup:</p>
+<ul>
+<li><p>through config file</p>
+<p>Libtpa finds config file in below order:</p>
+<ul class="simple">
+<li><p>./tpa.cfg</p></li>
+<li><p>/etc/tpa.cfg</p></li>
+</ul>
+</li>
+<li><p>through the env var with the compact cfg mode:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">TPA_CFG</span><span class="o">=</span><span class="s2">&quot;tcp { tso = 0; }&quot;</span> <span class="n">tpa</span> <span class="n">run</span> <span class="n">tperf</span> <span class="o">...</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p><strong>Config Options</strong></p>
+<p>All libtpa config options are divided in sections. The runtime libtpa
+displays the config options in a slightly different format: section_name.key.
+<code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">cfg</span> <span class="pre">list</span></code> lists all the config options libtpa supports:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa cfg list</span>
+<span class="n">log</span><span class="o">.</span><span class="n">level</span>                <span class="mi">2</span>
+<span class="n">log</span><span class="o">.</span><span class="n">file</span>                 <span class="n">N</span><span class="o">/</span><span class="n">A</span>
+<span class="n">net</span><span class="o">.</span><span class="n">ip</span>                   <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.10</span>
+<span class="n">net</span><span class="o">.</span><span class="n">mask</span>                 <span class="mf">255.255</span><span class="o">.</span><span class="mf">255.0</span>
+<span class="n">net</span><span class="o">.</span><span class="n">gw</span>                   <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.1</span>
+<span class="n">net</span><span class="o">.</span><span class="n">ip6</span>                  <span class="p">::</span>
+<span class="n">net</span><span class="o">.</span><span class="n">gw6</span>                  <span class="p">::</span>
+<span class="n">net</span><span class="o">.</span><span class="n">mac</span>                  <span class="n">fa</span><span class="p">:</span><span class="mi">16</span><span class="p">:</span><span class="mi">3</span><span class="n">e</span><span class="p">:</span><span class="mi">30</span><span class="p">:</span><span class="mi">4</span><span class="n">f</span><span class="p">:</span><span class="mi">90</span>
+<span class="n">net</span><span class="o">.</span><span class="n">name</span>                 <span class="n">eth0</span>
+<span class="n">net</span><span class="o">.</span><span class="n">bonding</span>              <span class="n">N</span><span class="o">/</span><span class="n">A</span>
+<span class="n">trace</span><span class="o">.</span><span class="n">enable</span>             <span class="mi">1</span>
+<span class="n">trace</span><span class="o">.</span><span class="n">more_trace</span>         <span class="mi">0</span>
+<span class="n">trace</span><span class="o">.</span><span class="n">trace_size</span>         <span class="mi">8</span><span class="n">KB</span>
+<span class="n">trace</span><span class="o">.</span><span class="n">nr_trace</span>           <span class="mi">2048</span>
+<span class="n">trace</span><span class="o">.</span><span class="n">no_wrap</span>            <span class="mi">0</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">nr_max_sock</span>          <span class="mi">32768</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">pkt_max_chain</span>        <span class="mi">45</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">usr_snd_mss</span>          <span class="mi">0</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">time_wait</span>            <span class="mi">1</span><span class="n">m</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">keepalive</span>            <span class="mi">2</span><span class="n">m</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">delayed_ack</span>          <span class="mi">1</span><span class="n">ms</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">tso</span>                  <span class="mi">1</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">rx_merge</span>             <span class="mi">1</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">opt_ts</span>               <span class="mi">1</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">opt_ws</span>               <span class="mi">1</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">opt_sack</span>             <span class="mi">1</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">retries</span>              <span class="mi">7</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">syn_retries</span>          <span class="mi">7</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">rcv_queue_size</span>       <span class="mi">2048</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">snd_queue_size</span>       <span class="mi">512</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">cwnd_init</span>            <span class="mi">16384</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">cwnd_max</span>             <span class="mi">1073741824</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">rcv_ooo_limit</span>        <span class="mi">2048</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">drop_ooo_threshold</span>   <span class="mi">33792</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">measure_latency</span>      <span class="mi">0</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">rto_min</span>              <span class="mi">100</span><span class="n">ms</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">write_chunk_size</span>     <span class="mi">16</span><span class="n">KB</span>
+<span class="n">tcp</span><span class="o">.</span><span class="n">local_port_range</span>     <span class="mi">41000</span> <span class="mi">64000</span>
+<span class="n">shell</span><span class="o">.</span><span class="n">postinit_cmd</span>       <span class="n">N</span><span class="o">/</span><span class="n">A</span>
+<span class="n">dpdk</span><span class="o">.</span><span class="n">socket</span><span class="o">-</span><span class="n">mem</span>          <span class="mi">1024</span>
+<span class="n">dpdk</span><span class="o">.</span><span class="n">pci</span>                 <span class="mi">0000</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mf">05.0</span>
+<span class="n">dpdk</span><span class="o">.</span><span class="n">extra_args</span>          <span class="n">N</span><span class="o">/</span><span class="n">A</span>
+<span class="n">dpdk</span><span class="o">.</span><span class="n">mbuf_cache_size</span>     <span class="mi">512</span>
+<span class="n">dpdk</span><span class="o">.</span><span class="n">mbuf_mem_size</span>       <span class="mi">0</span>
+<span class="n">dpdk</span><span class="o">.</span><span class="n">numa</span>                <span class="mi">0</span>
+<span class="n">dpdk</span><span class="o">.</span><span class="n">huge</span><span class="o">-</span><span class="n">unlink</span>         <span class="mi">1</span>
+<span class="n">offload</span><span class="o">.</span><span class="n">flow_mark</span>        <span class="mi">1</span>
+<span class="n">offload</span><span class="o">.</span><span class="n">sock_offload</span>     <span class="mi">0</span>
+<span class="n">offload</span><span class="o">.</span><span class="n">port_block_offload</span> <span class="mi">1</span>
+<span class="n">pktfuzz</span><span class="o">.</span><span class="n">enable</span>           <span class="mi">0</span>
+<span class="n">pktfuzz</span><span class="o">.</span><span class="n">log</span>              <span class="n">N</span><span class="o">/</span><span class="n">A</span>
+<span class="n">archive</span><span class="o">.</span><span class="n">enable</span>           <span class="mi">1</span>
+<span class="n">archive</span><span class="o">.</span><span class="n">flush_interval</span>   <span class="mi">60</span>
+</pre></div>
+</div>
+<p>Some options could be modified at runtime. For example, below command
+disables trace (which is enabled by default):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tpa</span> <span class="n">cfg</span> <span class="nb">set</span> <span class="n">trace</span><span class="o">.</span><span class="n">enale</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>Some options are read-only and can only be set once at startup time,
+such as net related configs (right, libtpa currently doesn’t support
+changing IP address at runtime). An error will be reported if one tries
+to modify them:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># tpa cfg set net.ip 192.168.1.12</span>
+<span class="n">failed</span> <span class="n">to</span> <span class="nb">set</span> <span class="n">cfg</span> <span class="n">opt</span><span class="p">:</span> <span class="n">net</span><span class="o">.</span><span class="n">ip</span><span class="p">:</span> <span class="k">try</span> <span class="n">to</span> <span class="nb">set</span> <span class="n">a</span> <span class="n">readonly</span> <span class="n">option</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="feature-list">
+<h2>Feature List<a class="headerlink" href="#feature-list" title="Permalink to this headline">¶</a></h2>
+<p><strong>TCP Features:</strong></p>
+<ul class="simple">
+<li><p>New Reno</p></li>
+<li><p>fast retransmission</p></li>
+<li><p>timed out retransmission</p></li>
+<li><p>spurious fast retransmission detection</p></li>
+<li><p>congestion window validation</p></li>
+<li><p>selective ACK</p></li>
+<li><p>delayed ACK</p></li>
+<li><p>keepalive</p></li>
+<li><p>zero window probe</p></li>
+<li><p>protect against wrapped sequence numbers (PAWS)</p></li>
+<li><p>timestamp option</p></li>
+<li><p>window scale option</p></li>
+<li><p>maximum segment size(MSS) option</p></li>
+</ul>
+<p><strong>Other Features:</strong></p>
+<ul class="simple">
+<li><p>IPv6</p></li>
+<li><p>TSO</p></li>
+<li><p>checksum offload</p></li>
+<li><p>jumbo frame</p></li>
+<li><p>multiple thread</p></li>
+<li><p>zero copy read</p></li>
+<li><p>zero copy write</p></li>
+<li><p>epoll like interface</p></li>
+</ul>
+</div>
+<div class="section" id="supported-hardwares">
+<h2>Supported Hardwares<a class="headerlink" href="#supported-hardwares" title="Permalink to this headline">¶</a></h2>
+<p><strong>platforms:</strong></p>
+<ul class="simple">
+<li><p>AMD64</p></li>
+<li><p>ARM (not well tested)</p></li>
+</ul>
+<p><strong>NICs:</strong></p>
+<ul class="simple">
+<li><p>Mellanox NIC (from ConnectX-4 to ConnectX-7)</p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="quick_start.html" class="btn btn-neutral float-left" title="Libtpa Quick Start" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="prog_guide.html" class="btn btn-neutral float-right" title="Libtpa Programming Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2023, ByteDance Ltd. and/or its Affiliates.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Libtpa Programming Guide &mdash; Libtpa  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Libtpa Internals" href="internals.html" />
+    <link rel="prev" title="Libtpa User Guide" href="user_guide.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Libtpa
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Libtpa Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">Libtpa User Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Libtpa Programming Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#architecture-overview">Architecture Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#libtpa-api">Libtpa API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#connection-management">Connection Management</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#read-and-write">Read and Write</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#worker-execution">Worker Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#event-handling">Event Handling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#misc">Misc</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Libtpa Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="redis.html">Redis with Libtpa</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Libtpa</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Libtpa Programming Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/prog_guide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="libtpa-programming-guide">
+<span id="prog-guide"></span><h1>Libtpa Programming Guide<a class="headerlink" href="#libtpa-programming-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Libtpa(Transport Protocol Acceleration) is a DPDK based userspace TCP
+stack implementation. It provides customized APIs only. Therefore
+modification is needed if you want to get the performance boost for
+your applications.</p>
+<p>This documentation provides detailed descriptions on those APIs.</p>
+</div>
+<div class="section" id="architecture-overview">
+<h2>Architecture Overview<a class="headerlink" href="#architecture-overview" title="Permalink to this headline">¶</a></h2>
+<p>Before heading to the libtpa API descriptions, it’s necessary to give
+an overview guide about the libtpa architecture.</p>
+<p><strong>shared-nothing model</strong></p>
+<p>Libtpa is designed for high performance. It takes the shared-nothing
+model to avoid lock in datapath. That means one TCP connection will
+be processed in one worker thread only: all operations, including
+connect, write, read, close, have to be invoked in the same worker
+thread.</p>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p>You can not create the connection at worker A and then do the write
+in worker B. Doing so results to undefined behaviour, including crash.</p>
+</div>
+<p><strong>run to completion</strong></p>
+<p>Libtpa also takes the classical DPDK running model: run to completion.
+As described below in the worker API section, the app has to keep calling
+<code class="docutils literal notranslate"><span class="pre">tpa_worker_run</span></code> to drive the TCP stack.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>That is an intruder. It basically means your application has to be
+reshaped to the run to completion model to use libtpa. We may introduce
+other models in future, to avoid such intrudes that have to be made to
+your applications.</p>
+</div>
+</div>
+<div class="section" id="libtpa-api">
+<h2>Libtpa API<a class="headerlink" href="#libtpa-api" title="Permalink to this headline">¶</a></h2>
+<p>Libtpa API can be loosely divided into five parts: connection management,
+read/write, worker execution, event handling, and misc. Below gives
+detailed descriptions for each of them.</p>
+<div class="section" id="connection-management">
+<h3>Connection Management<a class="headerlink" href="#connection-management" title="Permalink to this headline">¶</a></h3>
+<p>Libtpa provides simplified APIs compared with POSIX APIs for managing
+TCP connections.</p>
+<p><strong>connect</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">tpa_connect_to</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">server</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">port</span><span class="p">,</span>
+                   <span class="k">const</span> <span class="k">struct</span> <span class="n">tpa_sock_opts</span> <span class="o">*</span><span class="n">opts</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>It starts a new active connection, where</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">server</span></code> specifies the server address. It has to be an ipv4
+or ipv6 address in string format.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">port</span></code> specifies the remote port to connect to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">opts</span></code> specifies additional options can be applied to this new
+connection. It could simply be NULL when nothing special needed.
+So far, only the option <code class="docutils literal notranslate"><span class="pre">local_port</span></code> is relevant to active
+connections.</p></li>
+</ul>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">sock options</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span> <span class="cm">/*</span>
+<span class="cm">  * Provides extra options for socks going to be created by</span>
+<span class="cm">  * tpa_connect_to and tpa_connect_to.</span>
+<span class="cm">  */</span>
+ <span class="k">struct</span> <span class="n">tpa_sock_opts</span> <span class="p">{</span>
+     <span class="cm">/*</span>
+<span class="cm">      * When @listen_scaling is set to</span>
+<span class="cm">      * - 0: passive connections will be only distributed to the worker</span>
+<span class="cm">      *      where this listen sock has been bound to.</span>
+<span class="cm">      * - 1: passive connections will be distributed to all workers.</span>
+<span class="cm">      *</span>
+<span class="cm">      * tpa_listen_on only.</span>
+<span class="cm">      */</span>
+     <span class="kt">uint64_t</span> <span class="nl">listen_scaling</span><span class="p">:</span><span class="mi">1</span><span class="p">;</span>
+     <span class="kt">uint64_t</span> <span class="nl">bits_reserved</span><span class="p">:</span><span class="mi">63</span><span class="p">;</span>
+
+     <span class="cm">/*</span>
+<span class="cm">      * A private data set by user for listen sock. It could be</span>
+<span class="cm">      * retrieved by tpa_sock_info_get when a new sock is accepted.</span>
+<span class="cm">      *</span>
+<span class="cm">      * tpa_listen_on only.</span>
+<span class="cm">      */</span>
+     <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+
+     <span class="cm">/*</span>
+<span class="cm">      * Specifies a local port to bind to.</span>
+<span class="cm">      *</span>
+<span class="cm">      * tpa_connect_to only.</span>
+<span class="cm">      */</span>
+     <span class="kt">uint16_t</span> <span class="n">local_port</span><span class="p">;</span>
+     <span class="kt">uint8_t</span> <span class="n">reserved</span><span class="p">[</span><span class="mi">128</span> <span class="o">-</span> <span class="mi">18</span><span class="p">];</span>  <span class="cm">/* XXX: it&#39;s ugly */</span>
+ <span class="p">}</span> <span class="n">__attribute__</span><span class="p">((</span><span class="n">packed</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As stated before, for socks created by <code class="docutils literal notranslate"><span class="pre">tpa_connect_to</span></code>, they will
+be bound to the worker thread where this API is invoked.</p>
+<p>It’s also worth mentioning that the connect API is non-blocking. You
+need to watch the OUT event if you want to know when the connection
+is established.</p>
+</div>
+<p>On success, it returns a sock id (let’s call it <code class="docutils literal notranslate"><span class="pre">sid</span></code> from now on).
+Like fd, a negative value means error. Here is an example:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">sid</span><span class="p">;</span>
+
+<span class="n">sid</span> <span class="o">=</span> <span class="n">tpa_connect_to</span><span class="p">(</span><span class="s">&quot;::1&quot;</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">sid</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;failed to connect: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>listen</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">tpa_listen_on</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">local</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">port</span><span class="p">,</span>
+                  <span class="k">const</span> <span class="k">struct</span> <span class="n">tpa_sock_opts</span> <span class="o">*</span><span class="n">opts</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>It creates a sock listening on the given address and port. Where,</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">local</span></code> specifies the local address, it could be NULL to
+support dual stack. Or, it can be set to a specific IPv4 or IPv6
+address, then only the one specific IP version is supported.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">port</span></code> specifies the local port to listen on</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">opts</span></code> works the same as <code class="docutils literal notranslate"><span class="pre">tpa_connect_to</span></code>. There are two options
+relevant to a listen sock: <code class="docutils literal notranslate"><span class="pre">listen_scaling</span></code> and <code class="docutils literal notranslate"><span class="pre">data</span></code>.</p></li>
+</ul>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p>By default, only the worker thread that starts the <code class="docutils literal notranslate"><span class="pre">tpa_listen_on</span></code>
+call will get new passive connections. And due to the shared-nothing
+model, you can’t distribute those new socks to other workers at the
+application level after accepting them.</p>
+<p>If you want to get those new socks distributed “evenly” to all workers,
+you need to set <code class="docutils literal notranslate"><span class="pre">listen_scaling</span></code>. Note that it <strong>will not</strong> be
+perfect even though: as it’s the NIC RSS doing the distribution under
+the hood. If you have just a few socks, it’s very likely some workers
+get more passive connection while some get slightly fewer.</p>
+</div>
+<p><strong>accept</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">tpa_accept_burst</span><span class="p">(</span><span class="k">struct</span> <span class="n">tpa_worker</span> <span class="o">*</span><span class="n">worker</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">sid</span><span class="p">,</span> <span class="kt">int</span> <span class="n">nr_sid</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>It returns an array of newly accepted socks assigned to the given worker.
+If you want to fetch detailed sock information, such as remote address,
+the private data set at <code class="docutils literal notranslate"><span class="pre">tpa_listen_on</span></code>, etc, the below function does
+the job.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">tpa_sock_info</span> <span class="p">{</span>
+    <span class="k">struct</span> <span class="n">tpa_worker</span> <span class="o">*</span><span class="n">worker</span><span class="p">;</span>
+
+    <span class="cm">/* it&#39;s the tpa_sock_opts.data set by user */</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+
+    <span class="k">struct</span> <span class="n">tpa_ip</span> <span class="n">local_ip</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">tpa_ip</span> <span class="n">remote_ip</span><span class="p">;</span>
+    <span class="kt">uint16_t</span> <span class="n">local_port</span><span class="p">;</span>
+    <span class="kt">uint16_t</span> <span class="n">remote_port</span><span class="p">;</span>
+
+    <span class="kt">uint8_t</span> <span class="n">reserved</span><span class="p">[</span><span class="mi">76</span><span class="p">];</span>
+<span class="p">};</span>
+
+<span class="kt">int</span> <span class="nf">tpa_sock_info_get</span><span class="p">(</span><span class="kt">int</span> <span class="n">sid</span><span class="p">,</span> <span class="k">struct</span> <span class="n">tpa_sock_info</span> <span class="o">*</span><span class="n">info</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Below is a short listen &amp; accept demo.</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">listen &amp; accept example</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span> <span class="kt">int</span> <span class="n">sid</span><span class="p">;</span>
+
+ <span class="k">if</span> <span class="p">(</span><span class="n">tpa_listen_on</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+     <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;failed to listen on port 80: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+             <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+     <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+ <span class="p">}</span>
+
+ <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+     <span class="cm">/* explained later */</span>
+     <span class="n">tpa_worker_run</span><span class="p">(</span><span class="n">worker</span><span class="p">);</span>
+
+     <span class="k">if</span> <span class="p">(</span><span class="n">tpa_accept_burst</span><span class="p">(</span><span class="n">worker</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sid</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+         <span class="n">register_new_connection</span><span class="p">(</span><span class="n">sid</span><span class="p">);</span>
+
+     <span class="cm">/* ... */</span>
+ <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p><strong>close</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">tpa_close</span><span class="p">(</span><span class="kt">int</span> <span class="n">sid</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>It simply closes the connection identified by the given sid.</p>
+</div>
+<div class="section" id="read-and-write">
+<h3>Read and Write<a class="headerlink" href="#read-and-write" title="Permalink to this headline">¶</a></h3>
+<p>Libtpa supports both zero copy for read and write. It also supports
+non-zero copy write. It does not implement non-zero copy read API
+though.</p>
+<p><strong>read</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">tpa_iovec</span> <span class="p">{</span>
+    <span class="kt">void</span>    <span class="o">*</span><span class="n">iov_base</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">iov_phys</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">iov_reserved</span><span class="p">;</span>
+    <span class="kt">size_t</span>   <span class="n">iov_len</span><span class="p">;</span>
+    <span class="kt">void</span>    <span class="o">*</span><span class="n">iov_param</span><span class="p">;</span>
+    <span class="k">union</span> <span class="p">{</span>
+        <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">iov_read_done</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">iov_base</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">iov_param</span><span class="p">);</span>
+        <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">iov_write_done</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">iov_base</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">iov_param</span><span class="p">);</span>
+    <span class="p">};</span>
+<span class="p">};</span>
+
+<span class="kt">ssize_t</span> <span class="nf">tpa_zreadv</span><span class="p">(</span><span class="kt">int</span> <span class="n">sid</span><span class="p">,</span> <span class="k">struct</span> <span class="n">tpa_iovec</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span> <span class="kt">int</span> <span class="n">nr_iov</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Where,</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">tpa_iovec</span></code> is a libtpa customized iovec struct, with few fields
+extended mainly for zero copy implementation.</p>
+<p>The new fields are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iov_phys</span></code> specifies the starting physical address of the iov.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iov_read/write_done</span></code> is a callback the app/libtpa should invoke
+when the corresponding iov is read/written, respectively. It will
+be further explained.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iov_param</span></code> is the extra param for the above callback.</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+<p>Note that although this function just looks like the <code class="docutils literal notranslate"><span class="pre">readv</span></code> system
+call, it has a huge semantic difference: all fields in this struct
+are filled by libtpa (instead of by the APP like the <code class="docutils literal notranslate"><span class="pre">readv</span></code> system
+call). This is for implementing the zero copy read, and the justice
+is simple: only libtpa knows the data buffer address and size. Both
+of them are unpredictable for the APP at the time this API gets invoked.</p>
+<p>Thus, when the APP has done the processing of the read iov, it should
+invoke the <code class="docutils literal notranslate"><span class="pre">iov_read_done</span></code> callback to reclaim the memory allocated by
+libtpa. Here is an example:</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">tpa_zreadv example</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span> <span class="k">struct</span> <span class="n">tpa_iovec</span> <span class="n">iov</span><span class="p">;</span>
+ <span class="kt">ssize_t</span> <span class="n">ret</span><span class="p">;</span>
+
+ <span class="n">ret</span> <span class="o">=</span> <span class="n">tpa_zreadv</span><span class="p">(</span><span class="n">sid</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">iov</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+ <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+     <span class="k">if</span> <span class="p">(</span><span class="n">errno</span> <span class="o">==</span> <span class="n">EAGAIN</span><span class="p">)</span> <span class="p">{</span>
+         <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+      <span class="cm">/* error happened; handle it here */</span>
+ <span class="p">}</span>
+
+ <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+     <span class="cm">/* EOF reached; close it */</span>
+     <span class="n">tpa_close</span><span class="p">(</span><span class="n">sid</span><span class="p">);</span>
+ <span class="p">}</span>
+
+ <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+         <span class="cm">/* process the read buffer at iov.iov_base */</span>
+         <span class="n">process_data</span><span class="p">(</span><span class="n">iov</span><span class="p">.</span><span class="n">iov_base</span><span class="p">,</span> <span class="n">iov</span><span class="p">.</span><span class="n">iov_len</span><span class="p">);</span>
+
+         <span class="cm">/* free it when the process is done */</span>
+         <span class="n">iov</span><span class="p">.</span><span class="n">iov_read_done</span><span class="p">(</span><span class="n">iov</span><span class="p">.</span><span class="n">iov_base</span><span class="p">,</span> <span class="n">iov</span><span class="p">.</span><span class="n">iov_param</span><span class="p">);</span>
+ <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p><strong>write</strong></p>
+<p>Libtpa has two write APIs.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">ssize_t</span> <span class="nf">tpa_write</span><span class="p">(</span><span class="kt">int</span> <span class="n">sid</span><span class="p">,</span> <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="nf">tpa_zwritev</span><span class="p">(</span><span class="kt">int</span> <span class="n">sid</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">tpa_iovec</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span> <span class="kt">int</span> <span class="n">nr_iov</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The none-zero copy version works just like the <code class="docutils literal notranslate"><span class="pre">write</span></code> system call.</p>
+<p>The zero copy version is also quite similar to the <code class="docutils literal notranslate"><span class="pre">writev</span></code> system call,
+except three more fields need to be filled by the APP:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iov_phys</span></code>: this is needed for NIC to do DMA, therefore zero copy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iov_write_done</span></code>: when the data is completely transferred (when the
+TCP ACK is received), libtpa will invoke this callback to let the APP
+be aware of it(to free the buffer, etc).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iov_param</span></code>: an extra param filled by APP and will be echoed back
+to the APP when the above callback is invoked.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">iov_phys</span></code> is not needed for Mellanox NIC. Instead, it requires
+the corresponding memory region to be <a class="reference internal" href="#extmem-reg"><span class="std std-ref">registered</span></a>.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">iov_phys</span></code> is set to 0, there is a special meaning in libtpa.
+It means the zero copy write is disabled, and libtpa will fallback
+to the non-zero copy version.</p>
+<p>Since Mellanox doesn’t really care about the physical address and
+0 means disabling zero copy write, you can see <code class="docutils literal notranslate"><span class="pre">iov_phys</span></code> is
+set to 1 in example applications like swing, just to enable the
+zero copy write.</p>
+</div>
+<p>Below is a simple zwrite example with fallback being used:</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">tpa_zwritev example</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span> <span class="k">static</span> <span class="kt">void</span> <span class="nf">free_write_buffer</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">iov_base</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">iov_param</span><span class="p">)</span>
+ <span class="p">{</span>
+     <span class="n">free</span><span class="p">(</span><span class="n">iov_base</span><span class="p">);</span>
+ <span class="p">}</span>
+
+ <span class="kt">ssize_t</span> <span class="nf">tpa_zwrite_example</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+ <span class="p">{</span>
+     <span class="k">struct</span> <span class="n">tpa_iovec</span> <span class="n">iov</span><span class="p">;</span>
+     <span class="kt">ssize_t</span> <span class="n">ret</span><span class="p">;</span>
+
+     <span class="n">iov</span><span class="p">.</span><span class="n">iov_len</span>  <span class="o">=</span> <span class="n">size</span><span class="p">;</span>
+     <span class="n">iov</span><span class="p">.</span><span class="n">iov_base</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+     <span class="n">iov</span><span class="p">.</span><span class="n">iov_phys</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+     <span class="n">iov</span><span class="p">.</span><span class="n">iov_param</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+     <span class="n">iov</span><span class="p">.</span><span class="n">iov_write_done</span> <span class="o">=</span> <span class="n">free_write_buffer</span><span class="p">;</span>
+
+     <span class="n">ret</span> <span class="o">=</span> <span class="n">tpa_zwritev</span><span class="p">(</span><span class="n">sid</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">iov</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+     <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+         <span class="n">iov</span><span class="p">.</span><span class="n">iov_write_done</span><span class="p">(</span><span class="n">iov</span><span class="p">.</span><span class="n">iov_base</span><span class="p">,</span> <span class="n">iov</span><span class="p">.</span><span class="n">iov_param</span><span class="p">);</span>
+
+     <span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+ <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p>Both <code class="docutils literal notranslate"><span class="pre">tpa_write</span></code> and <code class="docutils literal notranslate"><span class="pre">tpa_zwritev</span></code> are atomic, meaning either
+all data are written or nothing will. This has an advantage. It
+simplifies the error handling. We don’t have to worry about that
+one iov is partially written.</p>
+<p>It has a drawback though. If the write is too large that the whole
+sock send queue can’t hold it, then the write would always fail
+with EAGAIN error. You can workaround it by:</p>
+<ul class="simple">
+<li><p>enlarging the sock send queue length by setting the cfg
+<code class="docutils literal notranslate"><span class="pre">tcp.snd_queue_size</span></code> (which is set to 512 by default). Or,</p></li>
+<li><p>breaking the large write to many smaller ones</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="worker-execution">
+<h3>Worker Execution<a class="headerlink" href="#worker-execution" title="Permalink to this headline">¶</a></h3>
+<p>The worker is the core TCP stack processing unit. There should be one worker
+per datapath thread. The number of worker is set by below function:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">tpa_init</span><span class="p">(</span><span class="kt">int</span> <span class="n">nr_worker</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This function also initializes the whole libtpa system, including the DPDK
+initialization. It should be invoked first before all other libtpa functions
+get invoked.</p>
+<p>Then there is a per-worker initialization function:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">tpa_worker</span> <span class="o">*</span><span class="nf">tpa_worker_init</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This function must be executed first at the corresponding worker
+thread. It returns the worker pointer that is needed for the rest
+worker APIs.  Note that this function must be executed once only.</p>
+<p>A worker gets executed every time below function get invoked:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">tpa_worker_run</span><span class="p">(</span><span class="k">struct</span> <span class="n">tpa_worker</span> <span class="o">*</span><span class="n">worker</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>It is the core of the libtpa, which basically does three things:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tcp</span> <span class="pre">input</span></code>: receives packets from NIC, feeds them to the TCP stack
+(decaping the net headers, finding the right sock, etc) and then delivers
+the TCP payload to the sock receive queue if any.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tcp</span> <span class="pre">output</span></code>: handles the write request from the APP, feeds them to
+the TCP stack (encaping the net headers, etc) and then sends them out
+to wire.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tcp</span> <span class="pre">timeout</span></code>: handles the retransmission timeouts, etc.</p></li>
+</ul>
+</div>
+<div class="section" id="event-handling">
+<h3>Event Handling<a class="headerlink" href="#event-handling" title="Permalink to this headline">¶</a></h3>
+<p>Libtpa provides two event related APIs. They are epoll alike, while they
+are quite different in some ways.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">tpa_event</span> <span class="p">{</span>
+    <span class="kt">uint32_t</span> <span class="n">events</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="kt">int</span> <span class="nf">tpa_event_ctrl</span><span class="p">(</span><span class="kt">int</span> <span class="n">sid</span><span class="p">,</span> <span class="kt">int</span> <span class="n">op</span><span class="p">,</span> <span class="k">struct</span> <span class="n">tpa_event</span> <span class="o">*</span><span class="n">event</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">tpa_event_poll</span><span class="p">(</span><span class="k">struct</span> <span class="n">tpa_worker</span> <span class="o">*</span><span class="n">worker</span><span class="p">,</span> <span class="k">struct</span> <span class="n">tpa_event</span> <span class="o">*</span><span class="n">events</span><span class="p">,</span> <span class="kt">int</span> <span class="n">max</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>As you see, there is no <code class="docutils literal notranslate"><span class="pre">epoll_create</span></code> equivalent in libtpa. The
+reason behind it is, as stated above, that every connection in libtpa
+is bound to a specific worker. Thus, the APP only has to register or
+remove some events to a specific connection with the API <code class="docutils literal notranslate"><span class="pre">tpa_event_ctrl</span></code>,
+then libtpa will find the correct worker so that a later call of
+<code class="docutils literal notranslate"><span class="pre">tpa_event_poll(worker,</span> <span class="pre">...)</span></code> could catch them.</p>
+</div>
+<div class="section" id="misc">
+<h3>Misc<a class="headerlink" href="#misc" title="Permalink to this headline">¶</a></h3>
+<p id="extmem-reg"><strong>external memory management</strong></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This section applies to Mellanox NICs only</p>
+</div>
+<p>For Mellanox NICs, you need to register the memory region first if you
+want to do zero copy write with buffers inside that region.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">tpa_extmem_register</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">virt_addr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">len</span><span class="p">,</span> <span class="kt">uint64_t</span> <span class="o">*</span><span class="n">phys_addrs</span><span class="p">,</span>
+                        <span class="kt">int</span> <span class="n">nr_page</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">page_size</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">tpa_extmem_unregister</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">virt_addr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">len</span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">external memory register example</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span> <span class="kt">void</span> <span class="o">*</span><span class="n">buf</span> <span class="o">=</span> <span class="n">aligned_alloc</span><span class="p">(</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">);</span>
+
+ <span class="k">if</span> <span class="p">(</span><span class="n">tpa_extmem_register</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4096</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+     <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;failed to register external memory: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+     <span class="k">return</span><span class="p">;</span>
+ <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>You then can do zero copy write with address within the range [buf, buf + 4096).</p>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>Libtpa repo has few <a class="reference external" href="https://github.com/bytedance/libtpa/tree/main/app">example applications</a>.
+Both <a class="reference external" href="https://github.com/bytedance/libtpa/tree/main/app/swing">swing</a> and
+<a class="reference external" href="https://github.com/bytedance/libtpa/tree/main/app/techo">techo</a> are good examples
+to look at: both are short and simple.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="user_guide.html" class="btn btn-neutral float-left" title="Libtpa User Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="internals.html" class="btn btn-neutral float-right" title="Libtpa Internals" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2023, ByteDance Ltd. and/or its Affiliates.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

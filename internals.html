@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Libtpa Internals &mdash; Libtpa  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Redis with Libtpa" href="redis.html" />
+    <link rel="prev" title="Libtpa Programming Guide" href="prog_guide.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Libtpa
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Libtpa Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">Libtpa User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="prog_guide.html">Libtpa Programming Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Libtpa Internals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#zero-copy">Zero Copy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#zero-copy-write">Zero Copy Write</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#zero-copy-read">Zero Copy Read</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#tracing">Tracing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mem-file">Mem File</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#neigh">Neigh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#libtpad">Libtpad</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#keepalive">Keepalive</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#offload">Offload</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#matrix-shell">Matrix Shell</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="redis.html">Redis with Libtpa</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Libtpa</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Libtpa Internals</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/internals.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="libtpa-internals">
+<h1>Libtpa Internals<a class="headerlink" href="#libtpa-internals" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This documentation describes some internal implementation details about
+libtpa. Hopefully, it will make it a bit easier for you to understand
+the implementation if you want to contribute or do customization for
+your own needs.</p>
+</div>
+<div class="section" id="zero-copy">
+<h2>Zero Copy<a class="headerlink" href="#zero-copy" title="Permalink to this headline">¶</a></h2>
+<p>Zero copy is a must for high performance. Libtpa supports both zero copy
+write and read. Like the <a class="reference internal" href="prog_guide.html#prog-guide"><span class="std std-ref">programming guide</span></a> described,
+libtpa introduces an extended iovec struct, tpa_iovec, to complement the
+zero copy implementation.</p>
+<div class="section" id="zero-copy-write">
+<h3>Zero Copy Write<a class="headerlink" href="#zero-copy-write" title="Permalink to this headline">¶</a></h3>
+<p>A write request from both <code class="docutils literal notranslate"><span class="pre">tpa_write</span></code> and <code class="docutils literal notranslate"><span class="pre">tpa_zwritev</span></code> will be turned
+to one or more <code class="docutils literal notranslate"><span class="pre">tx_desc</span></code>, depending the iov count, write size and the config
+<code class="docutils literal notranslate"><span class="pre">tcp.write_chunk_size</span></code> (which is set to 16KB by default).</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">tx_desc</span> <span class="p">{</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">addr</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">phys_addr</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">len</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">flags</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">write_done</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">base</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">param</span><span class="p">);</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">base</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">param</span><span class="p">;</span>
+
+    <span class="kt">uint32_t</span> <span class="n">seq</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">reserved</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">ts_us</span><span class="p">;</span>
+
+    <span class="cm">/* cacheline 2 */</span>
+    <span class="kt">uint64_t</span> <span class="n">tsc_start</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">tsc_submit</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">tsc_xmit</span><span class="p">;</span>
+
+    <span class="cm">/* for none zero copy write */</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">pkt</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">__attribute__</span><span class="p">((</span><span class="n">__aligned__</span><span class="p">(</span><span class="mi">64</span><span class="p">)));</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">tx_desc</span></code> has a few more fields compared with <code class="docutils literal notranslate"><span class="pre">tpa_iovec</span></code>, where</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">seq</span></code> denotes the TCP seq assigned to this desc</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ts_us</span></code> denotes the transmit timestamp</p></li>
+</ul>
+<p>The three tsc_xxx fields are used for latency measurement:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tsc_start</span></code> denotes the timestamp at the beginning of the write API.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tsc_submit</span></code> denotes the timestamp when the write is submitted to the
+TCP txq.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tsc_xmit</span></code> denotes the timestamp when the data is going to be
+transmitted.</p></li>
+</ul>
+<p>You can check the <a class="reference internal" href="user_guide.html#sock-latency"><span class="std std-ref">user guide</span></a> on how to check the sock
+latency with the help of those fields.</p>
+<p>Since it’s zero copy write, the APP can’t free the write buffer when the API
+returns: the buffer is still referenced by libtpa and it may even have to be
+retransmitted. Therefore, the APP can free it only when libtpa no longer
+references it, that is when the data is ACKed by the remote end. And that’s
+what the <code class="docutils literal notranslate"><span class="pre">iov_write_done</span></code> field for.</p>
+<p>The function <code class="docutils literal notranslate"><span class="pre">tcp_xmit_data</span></code> then will fetch those tx descs and encap them
+with a TCP header and then send them out by the familiar DPDK API <code class="docutils literal notranslate"><span class="pre">rte_eth_tx_burst</span></code>.
+Note that DPDK only deals with rte_mbuf. Therefore, we have to turn the tx desc
+to rte_mbuf. Libtpa does not use the DPDK API to do the external buffer
+attachment, instead, it comes up with something a bit more lightweight:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cm">/*</span>
+<span class="cm"> * A more lightweight external buf attach for zero copy write implementation.</span>
+<span class="cm"> */</span>
+<span class="k">static</span> <span class="kr">inline</span> <span class="kt">void</span> <span class="nf">packet_attach_extbuf</span><span class="p">(</span><span class="k">struct</span> <span class="n">packet</span> <span class="o">*</span><span class="n">pkt</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">virt_addr</span><span class="p">,</span>
+                                        <span class="kt">uint64_t</span> <span class="n">phys_addr</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">data_len</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">pkt</span><span class="o">-&gt;</span><span class="n">mbuf</span><span class="p">.</span><span class="n">buf_addr</span> <span class="o">=</span> <span class="n">virt_addr</span><span class="p">;</span>
+    <span class="n">pkt</span><span class="o">-&gt;</span><span class="n">mbuf</span><span class="p">.</span><span class="n">buf_iova</span> <span class="o">=</span> <span class="n">phys_addr</span><span class="p">;</span>
+    <span class="n">pkt</span><span class="o">-&gt;</span><span class="n">mbuf</span><span class="p">.</span><span class="n">pkt_len</span>  <span class="o">=</span> <span class="n">data_len</span><span class="p">;</span>
+    <span class="n">pkt</span><span class="o">-&gt;</span><span class="n">mbuf</span><span class="p">.</span><span class="n">data_len</span> <span class="o">=</span> <span class="n">data_len</span><span class="p">;</span>
+    <span class="n">pkt</span><span class="o">-&gt;</span><span class="n">mbuf</span><span class="p">.</span><span class="n">data_off</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>To consume as less memory as possible, libtpa creates one <code class="docutils literal notranslate"><span class="pre">zwrite_pkt_pool</span></code>
+mempool for each worker. Mbufs from this pool only has room for the <code class="docutils literal notranslate"><span class="pre">rte_mbuf</span></code>
+struct and 128 bytes of private data(for holding the <code class="docutils literal notranslate"><span class="pre">struct</span> <span class="pre">packet</span></code> meta data):
+the data room is set to zero, as they don’t hold any data after all.</p>
+<p>There is another advantage of introducing <code class="docutils literal notranslate"><span class="pre">zwrite_pkt_pool</span></code>. Libtpa
+only allocates mbufs from this pool for one purpose: attaching them to
+external bufs. Therefore, we don’t have to reset them while freeing them.
+They will get reset automatically every time we attach them to new
+external bufs. Therefore, it’s more lightweight.</p>
+</div>
+<div class="section" id="zero-copy-read">
+<h3>Zero Copy Read<a class="headerlink" href="#zero-copy-read" title="Permalink to this headline">¶</a></h3>
+<p>It’s a bit tricky to implement zero copy read, as it’s the DPDK but not
+the application to prepare the receive buffer (the mbuf). Therefore,
+to get the zero copy semantics, we have to pass the mbuf to the
+application. Like what we have to deal with for zero copy write, the
+rte_mbuf has to be freed somewhere and somewhen. The callback
+<code class="docutils literal notranslate"><span class="pre">iov_read_done</span></code> is the answer: the user has to invoke it when it
+no longer needs the corresponding iov.</p>
+<p>Below is the key code snippet of zero copy read implementation:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="kt">void</span> <span class="nf">iov_buf_free</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">addr</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">param</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">struct</span> <span class="n">packet</span> <span class="o">*</span><span class="n">pkt</span> <span class="o">=</span> <span class="n">param</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="o">--</span><span class="n">pkt</span><span class="o">-&gt;</span><span class="n">nr_read_seg</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="cm">/* ... */</span>
+        <span class="n">packet_free</span><span class="p">(</span><span class="n">pkt</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kr">inline</span> <span class="kt">size_t</span> <span class="nf">pkt_to_iov_one_seg</span><span class="p">(</span><span class="k">struct</span> <span class="n">tpa_iovec</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span>
+                                        <span class="k">struct</span> <span class="n">packet</span> <span class="o">*</span><span class="n">head</span><span class="p">,</span>
+                                        <span class="k">struct</span> <span class="n">packet</span> <span class="o">*</span><span class="n">pkt</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">iov</span><span class="o">-&gt;</span><span class="n">iov_base</span> <span class="o">=</span> <span class="n">tcp_payload_addr</span><span class="p">(</span><span class="n">pkt</span><span class="p">);</span>
+    <span class="n">iov</span><span class="o">-&gt;</span><span class="n">iov_phys</span> <span class="o">=</span> <span class="n">tcp_payload_phys_addr</span><span class="p">(</span><span class="n">pkt</span><span class="p">);</span>
+    <span class="n">iov</span><span class="o">-&gt;</span><span class="n">iov_len</span>  <span class="o">=</span> <span class="n">pkt</span><span class="o">-&gt;</span><span class="n">l5_len</span><span class="p">;</span>
+    <span class="n">iov</span><span class="o">-&gt;</span><span class="n">iov_read_done</span> <span class="o">=</span> <span class="n">iov_buf_free</span><span class="p">;</span>
+    <span class="n">iov</span><span class="o">-&gt;</span><span class="n">iov_param</span>     <span class="o">=</span> <span class="n">head</span><span class="p">;</span>
+
+    <span class="cm">/* ... */</span>
+    <span class="k">return</span> <span class="n">iov</span><span class="o">-&gt;</span><span class="n">iov_len</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="tracing">
+<h2>Tracing<a class="headerlink" href="#tracing" title="Permalink to this headline">¶</a></h2>
+<p>Judging the complexity of the TCP protocol, we really need something that
+can give us internal insights when something goes wrong. Tcpdump is a
+great tool, but we normally use it to debug the issue after it has already
+happened. Therefore, it relies on that the issue is reproduce-able.
+Apparently, tcpdump is so heavy that it can not be enabled all the time.</p>
+<p>Tracing is the solution after much thought. Tracing implemented in libtpa
+has two characteristics:</p>
+<ul class="simple">
+<li><p>it’s filled in binary format only. Therefore, it’s lightweight</p></li>
+<li><p>it’s a ring buffer. Therefore, it will not eat our disk or memory.</p></li>
+</ul>
+<p>Thus, tracing is always enabled in libtpa. The overhead is so small that
+it can be ignored. As you can see from the <a class="reference internal" href="redis.html#redis-libtpa"><span class="std std-ref">redis bencharmk</span></a>
+test, tracing brings less than 3% performance penalty. More importantly,
+we now could know exactly what happens with the <a class="reference internal" href="user_guide.html#st-tool"><span class="std std-ref">tpa st</span></a>
+tool when something goes wrong.</p>
+<p>Below goes quickly about the tracing implementation. As stated above, a
+trace is a ring buffer of <code class="docutils literal notranslate"><span class="pre">trace_record</span></code>:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">trace_record</span> <span class="p">{</span>
+    <span class="k">union</span> <span class="p">{</span>
+        <span class="k">struct</span> <span class="p">{</span>
+            <span class="kt">uint8_t</span> <span class="n">type</span><span class="p">;</span>
+            <span class="kt">uint8_t</span> <span class="n">u8</span><span class="p">;</span>
+            <span class="kt">uint16_t</span> <span class="n">u16</span><span class="p">;</span>
+            <span class="kt">uint32_t</span> <span class="n">u32</span><span class="p">;</span>
+        <span class="p">};</span>
+
+        <span class="k">struct</span> <span class="p">{</span>
+            <span class="kt">uint64_t</span> <span class="nl">_type</span><span class="p">:</span><span class="mi">8</span><span class="p">;</span>
+            <span class="kt">uint64_t</span> <span class="nl">u56</span><span class="p">:</span><span class="mi">56</span><span class="p">;</span>
+        <span class="p">};</span>
+    <span class="p">};</span>
+<span class="p">};</span>
+
+<span class="cp">#define TYPE_RECORD(_type, ...) record = &amp;trace-&gt;records[(trace-&gt;off++) &amp; trace-&gt;mask]; \</span>
+<span class="cp">                                record-&gt;type = _type;                                   \</span>
+<span class="cp">                                __VA_ARGS__</span>
+<span class="cp">#define DATA_RECORD(...)        record = &amp;trace-&gt;records[(trace-&gt;off++) &amp; trace-&gt;mask]; \</span>
+<span class="cp">                                record-&gt;type = TT_data;                                 \</span>
+<span class="cp">                                __VA_ARGS__</span>
+</pre></div>
+</div>
+<p>The trace record is with fixed size: 8 bytes. The first byte is type. We then just have
+the space for one 8-bit, one 16-bit and one 32-bit payload. Note that the 56-bit is
+used only for tracing the timestamp payload so far.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#define R8(x)                   (record-&gt;u8 = x)</span>
+<span class="cp">#define R16(x)                  (record-&gt;u16 = x)</span>
+<span class="cp">#define R32(x)                  (record-&gt;u32 = x)</span>
+<span class="cp">#define R56(x)                  (record-&gt;u56 = x)</span>
+</pre></div>
+</div>
+<p>Below comes one specific trace declaration, trace_tcp_rcv_pkt:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">DECLARE_TRACE</span><span class="p">(</span><span class="n">tcp_rcv_pkt</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">TRACE_ARGS</span><span class="p">(</span>
+        <span class="kt">uint32_t</span> <span class="n">seq</span> <span class="n">_AD_</span> <span class="kt">uint32_t</span> <span class="n">ack</span>  <span class="n">_AD_</span>  <span class="kt">uint16_t</span> <span class="n">wnd</span> <span class="n">_AD_</span>
+        <span class="kt">uint16_t</span> <span class="n">len</span> <span class="n">_AD_</span> <span class="kt">uint8_t</span> <span class="n">flags</span> <span class="n">_AD_</span>  <span class="kt">uint8_t</span> <span class="n">nr_seg</span>
+    <span class="p">),</span>
+
+    <span class="n">TRACE_RECORDS</span><span class="p">(</span>
+        <span class="n">TYPE_RECORD</span><span class="p">(</span><span class="n">TT_tcp_rcv_pkt</span><span class="p">,</span> <span class="n">R32</span><span class="p">(</span><span class="n">seq</span><span class="p">);</span> <span class="n">R16</span><span class="p">(</span><span class="n">wnd</span><span class="p">);</span> <span class="n">R8</span><span class="p">(</span><span class="n">flags</span><span class="p">));</span>
+        <span class="n">DATA_RECORD</span><span class="p">(</span><span class="n">R32</span><span class="p">(</span><span class="n">ack</span><span class="p">);</span> <span class="n">R16</span><span class="p">(</span><span class="n">len</span><span class="p">);</span> <span class="n">R8</span><span class="p">(</span><span class="n">nr_seg</span><span class="p">));</span>
+    <span class="p">),</span>
+
+    <span class="n">TRACE_PARSER</span><span class="p">(</span>
+        <span class="n">trace_printf</span><span class="p">(</span><span class="s">&quot;tcp_rcv: seq=%u len=%u nr_seg=%u wnd=%hu .-rcv_nxt=%+d | ack=%u .-snd_una=%+d .-snd_nxt=%+d | %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+                     <span class="n">rcv_seq</span><span class="p">(</span><span class="n">seq</span><span class="p">),</span> <span class="n">len</span><span class="p">,</span> <span class="n">nr_seg</span><span class="p">,</span> <span class="n">wnd</span><span class="p">,</span> <span class="p">(</span><span class="kt">int</span><span class="p">)(</span><span class="n">seq</span> <span class="o">-</span> <span class="n">ctx</span><span class="o">-&gt;</span><span class="n">rcv_nxt</span><span class="p">),</span>
+                     <span class="n">snd_seq</span><span class="p">(</span><span class="n">ack</span><span class="p">),</span> <span class="p">(</span><span class="kt">int</span><span class="p">)(</span><span class="n">ack</span> <span class="o">-</span> <span class="n">ctx</span><span class="o">-&gt;</span><span class="n">snd_una</span><span class="p">),</span> <span class="p">(</span><span class="kt">int</span><span class="p">)(</span><span class="n">ack</span> <span class="o">-</span> <span class="n">ctx</span><span class="o">-&gt;</span><span class="n">snd_nxt</span><span class="p">),</span>
+                     <span class="n">tcp_flags_to_str</span><span class="p">(</span><span class="n">flags</span><span class="p">));</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>As you can see, libtpa only uses 2 records (16 bytes) for tracing a
+received packet.</p>
+<p>Since it’s a ring buffer, the data will get overwritten eventually.
+Assume there was a networking issue and got recovered later,
+then the trace will get overwritten with new data transferred and
+received. If you dump the live sock trace, you will find everything
+normal. Therefore, it doesn’t really help. libtpa automatically
+archives the trace when it gets recovered from something abnormal
+(such as out of order receive, retransmission, etc). In another
+word, the scene is captured, you then can examine it by the
+<code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">st</span></code> tool any time you want (as far as it is not flushed).
+For example,</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># tpa st | grep rto | head
+/var/log/tpa/client/socktrace194   ...  2023-12-04.16:55:00.070575  ... rto-107.447ms
+/var/log/tpa/client/socktrace193   ...  2023-12-04.16:55:00.068062  ... rto-214.160ms
+/var/log/tpa/client/socktrace192   ...  2023-12-04.16:55:00.065471  ... rto-214.160ms
+/var/log/tpa/client/socktrace191   ...  2023-12-04.16:55:00.062957  ... rto-234.977ms
+/var/log/tpa/client/socktrace190   ...  2023-12-04.16:55:00.060359  ... rto-214.160ms
+/var/log/tpa/client/socktrace189   ...  2023-12-04.16:55:00.057774  ... rto-214.160ms
+/var/log/tpa/client/socktrace188   ...  2023-12-04.16:55:00.055150  ... rto-184.099ms
+/var/log/tpa/client/socktrace187   ...  2023-12-04.16:55:00.052640  ... rto-178.073ms
+/var/log/tpa/client/socktrace186   ...  2023-12-04.16:55:00.050103  ... rto-181.962ms
+/var/log/tpa/client/socktrace185   ...  2023-12-04.16:55:00.047533  ... rto-179.440ms
+</pre></div>
+</div>
+</div>
+<div class="section" id="mem-file">
+<h2>Mem File<a class="headerlink" href="#mem-file" title="Permalink to this headline">¶</a></h2>
+<p>Libtpa makes use of memory files a lot, including the tracing file mentioned
+above. Since the data is produced in one process (the libtpa instance) and
+parsed in another process (the <code class="docutils literal notranslate"><span class="pre">tpa</span> <span class="pre">st</span></code> tool), the data format has to be
+the same. Otherwise, the parser simply won’t work. It’s kind of like the
+ABI issue. And it’s really hard to maintain the data format unchanged for
+a project under active development.</p>
+<p>Libtpa solves this issue by embedding the parser into the mem file:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cm">/* the disk layout */</span>
+<span class="k">struct</span> <span class="n">mem_file_hdr</span> <span class="p">{</span>
+    <span class="kt">uint64_t</span> <span class="n">magic</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">size</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">data_offset</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">parser_offset</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">MEM_FILE_NAME_LEN</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">__attribute__</span><span class="p">((</span><span class="n">__aligned__</span><span class="p">(</span><span class="mi">64</span><span class="p">)));</span>
+</pre></div>
+</div>
+<p>Therefore, a mem file will always be parse-able. Taking the sock trace
+file as example, the trace file will always print something meaningful
+as far as we have it.</p>
+</div>
+<div class="section" id="neigh">
+<h2>Neigh<a class="headerlink" href="#neigh" title="Permalink to this headline">¶</a></h2>
+<p>The neigh implementation in libtpa is a bit special. Libtpa injects the
+neigh solicitation in the worker thread by DPDK, while it receives and
+handles the response in the ctrl thread by the AF_PACKET socket.</p>
+<p>It works well, since, by the current design, libtpa is not a standalone
+TCP/IP stack. We need to handle neigh response in the worker thread as
+well if you want to make libtpa be a standalone TCP/IP stack.</p>
+</div>
+<div class="section" id="libtpad">
+<h2>Libtpad<a class="headerlink" href="#libtpad" title="Permalink to this headline">¶</a></h2>
+<p>Userspace stack is special compared with the kernel stack. If the userspace
+stack process quits (either normally, or abnormally, say crash), no one will
+do the cleanup job for those established socks. Those socks may keep as the
+established state forever as far as the remote end doesn’t send us anything.
+Note that the stack is not even aware of those connections, therefore, the
+kernel stack would also do nothing.</p>
+<p>Therefore, libtpa introduces a daemon process for each instance. The daemon
+basically enters to sleep mode when it starts. It will get woken up when
+the corresponding instance is dead (either normally or abnormally). It
+then will do the missing cleanup work: terminating active socks.</p>
+<p>The terminating process is also kind of tricky, as it simply forges
+a TCP RST packet and sends it out by, again, the AF_PACKET socket.</p>
+</div>
+<div class="section" id="keepalive">
+<h2>Keepalive<a class="headerlink" href="#keepalive" title="Permalink to this headline">¶</a></h2>
+<p>Like what the libtpad section described, userspace stack lacks some
+support to do sock cleanup. Besides the daemon process, there is actually
+one more elegant solution: the TCP keepalive feature. It could detect
+half open connections and then close them as early as possible (well,
+with a few minutes delay).</p>
+<p>Thus, keepalive is enabled by default in libtpa. You should not
+disable it unless you know what you are doing.</p>
+</div>
+<div class="section" id="offload">
+<h2>Offload<a class="headerlink" href="#offload" title="Permalink to this headline">¶</a></h2>
+<p>As stated in the <a class="reference internal" href="user_guide.html#requirements"><span class="std std-ref">requirements</span></a> section, libtpa
+leverages the flow bifurcation to steer the packets of interest to itself.
+It’s the rte_flow interface doing the job under the hood.</p>
+<p>More specifically, it’s the QUEUE action to steer specific packets to
+a specific worker, therefore, the shared-nothing model.</p>
+</div>
+<div class="section" id="matrix-shell">
+<span id="id1"></span><h2>Matrix Shell<a class="headerlink" href="#matrix-shell" title="Permalink to this headline">¶</a></h2>
+<p>A test tool often comes with many arguments. Taking <a class="reference external" href="https://github.com/bytedance/libtpa/tree/main/app/tperf">tperf</a>
+as an example, it has arguments -t test, -m message_size, -n nr_thread, etc.
+Each argument may have many options. For example, test could be read, write,
+rw, etc. message_size could be 1, 4KB, 16KB, etc. If we treat that as a
+argument matrix, we then can test a lot of different combinations:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># cat test.ms
+params:
+  test: [read, write, rw]
+  message_size: [1, 4KB, 16KB]
+  nr_thread: [1, 4]
+end
+
+echo &quot;testing with params: nr_thread=$nr_thread test=$test message_size=$message_size&quot;
+</pre></div>
+</div>
+<p>The above test.ms would then split to 3 * 3 * 2 = 18 test cases:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>ms-list test.ms --short | nl
+     1  test/test=read__message_size=1__nr_thread=1
+     2  test/test=read__message_size=1__nr_thread=4
+     3  test/test=read__message_size=4KB__nr_thread=1
+     4  test/test=read__message_size=4KB__nr_thread=4
+     5  test/test=read__message_size=16KB__nr_thread=1
+     6  test/test=read__message_size=16KB__nr_thread=4
+     7  test/test=write__message_size=1__nr_thread=1
+     8  test/test=write__message_size=1__nr_thread=4
+     9  test/test=write__message_size=4KB__nr_thread=1
+    10  test/test=write__message_size=4KB__nr_thread=4
+    11  test/test=write__message_size=16KB__nr_thread=1
+    12  test/test=write__message_size=16KB__nr_thread=4
+    13  test/test=rw__message_size=1__nr_thread=1
+    14  test/test=rw__message_size=1__nr_thread=4
+    15  test/test=rw__message_size=4KB__nr_thread=1
+    16  test/test=rw__message_size=4KB__nr_thread=4
+    17  test/test=rw__message_size=16KB__nr_thread=1
+    18  test/test=rw__message_size=16KB__nr_thread=4
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="prog_guide.html" class="btn btn-neutral float-left" title="Libtpa Programming Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="redis.html" class="btn btn-neutral float-right" title="Redis with Libtpa" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2023, ByteDance Ltd. and/or its Affiliates.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

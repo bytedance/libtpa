@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redis with Libtpa &mdash; Libtpa  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Libtpa Internals" href="internals.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Libtpa
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Libtpa Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">Libtpa User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="prog_guide.html">Libtpa Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Libtpa Internals</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Redis with Libtpa</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-redis">Build Redis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#benchmark">Benchmark</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#with-sock-trace-the-default">With Sock Trace (the Default)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#without-sock-trace">Without Sock Trace</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#appendix">Appendix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#hardware">Hardware</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#results-with-kernel-tcp">Results with Kernel TCP</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Libtpa</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Redis with Libtpa</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/redis.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="redis-with-libtpa">
+<span id="redis-libtpa"></span><h1>Redis with Libtpa<a class="headerlink" href="#redis-with-libtpa" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This page shows how to build and run redis with libtpa acceleration.</p>
+<p>In summary, libtpa boosts the redis GET benchmark performance more
+than 5 times, from 0.21m rps to 1.14m rps. Meanwhile, the p99 latency
+is greatly decreased, from 0.815ms to 0.159ms.</p>
+</div>
+<div class="section" id="build-redis">
+<h2>Build Redis<a class="headerlink" href="#build-redis" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>cd demo/redis
+./build.sh
+</pre></div>
+</div>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p>Libtpa has to be installed (by executing make install) before
+building redis. Otherwise, redis build would fail.</p>
+</div>
+</div>
+<div class="section" id="benchmark">
+<h2>Benchmark<a class="headerlink" href="#benchmark" title="Permalink to this headline">¶</a></h2>
+<p>Start redis with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">taskset</span> <span class="o">-</span><span class="n">c</span> <span class="mi">1</span> <span class="n">tpa</span> <span class="n">run</span> <span class="o">./</span><span class="n">redis</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">redis</span><span class="o">-</span><span class="n">server</span> <span class="o">--</span><span class="n">protected</span><span class="o">-</span><span class="n">mode</span> <span class="n">no</span>
+</pre></div>
+</div>
+<div class="section" id="with-sock-trace-the-default">
+<h3>With Sock Trace (the Default)<a class="headerlink" href="#with-sock-trace-the-default" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># taskset -c 1-20 redis-benchmark -h 192.168.1.10 --threads 20 -c 100 -t get -n 10000000
+====== GET ======
+  10000000 requests completed in 9.02 seconds
+  100 parallel clients
+  3 bytes payload
+  keep alive: 1
+  host configuration &quot;save&quot;: 3600 1 300 100 60 10000
+  host configuration &quot;appendonly&quot;: no
+  multi-thread: yes
+  threads: 20
+
+Latency by percentile distribution:
+0.000% &lt;= 0.015 milliseconds (cumulative count 171)
+50.000% &lt;= 0.079 milliseconds (cumulative count 5583384)
+75.000% &lt;= 0.095 milliseconds (cumulative count 8015454)
+87.500% &lt;= 0.111 milliseconds (cumulative count 9164793)
+93.750% &lt;= 0.119 milliseconds (cumulative count 9459320)
+96.875% &lt;= 0.135 milliseconds (cumulative count 9764778)
+98.438% &lt;= 0.151 milliseconds (cumulative count 9874730)
+99.219% &lt;= 0.183 milliseconds (cumulative count 9925242)
+99.609% &lt;= 0.383 milliseconds (cumulative count 9961301)
+99.805% &lt;= 0.679 milliseconds (cumulative count 9980886)
+99.902% &lt;= 0.823 milliseconds (cumulative count 9990402)
+99.951% &lt;= 0.919 milliseconds (cumulative count 9995228)
+99.976% &lt;= 0.999 milliseconds (cumulative count 9997681)
+99.988% &lt;= 1.063 milliseconds (cumulative count 9998865)
+99.994% &lt;= 1.127 milliseconds (cumulative count 9999429)
+99.997% &lt;= 1.183 milliseconds (cumulative count 9999695)
+99.998% &lt;= 1.255 milliseconds (cumulative count 9999858)
+99.999% &lt;= 1.287 milliseconds (cumulative count 9999936)
+100.000% &lt;= 1.311 milliseconds (cumulative count 9999963)
+100.000% &lt;= 1.351 milliseconds (cumulative count 9999981)
+100.000% &lt;= 1.383 milliseconds (cumulative count 9999993)
+100.000% &lt;= 2.127 milliseconds (cumulative count 9999996)
+100.000% &lt;= 2.167 milliseconds (cumulative count 9999998)
+100.000% &lt;= 2.175 milliseconds (cumulative count 9999999)
+100.000% &lt;= 2.511 milliseconds (cumulative count 10000000)
+100.000% &lt;= 2.511 milliseconds (cumulative count 10000000)
+
+Cumulative distribution of latencies:
+87.127% &lt;= 0.103 milliseconds (cumulative count 8712681)
+99.414% &lt;= 0.207 milliseconds (cumulative count 9941442)
+99.568% &lt;= 0.303 milliseconds (cumulative count 9956775)
+99.627% &lt;= 0.407 milliseconds (cumulative count 9962749)
+99.692% &lt;= 0.503 milliseconds (cumulative count 9969217)
+99.761% &lt;= 0.607 milliseconds (cumulative count 9976114)
+99.825% &lt;= 0.703 milliseconds (cumulative count 9982461)
+99.894% &lt;= 0.807 milliseconds (cumulative count 9989381)
+99.946% &lt;= 0.903 milliseconds (cumulative count 9994569)
+99.979% &lt;= 1.007 milliseconds (cumulative count 9997861)
+99.993% &lt;= 1.103 milliseconds (cumulative count 9999267)
+99.998% &lt;= 1.207 milliseconds (cumulative count 9999761)
+100.000% &lt;= 1.303 milliseconds (cumulative count 9999954)
+100.000% &lt;= 1.407 milliseconds (cumulative count 9999993)
+100.000% &lt;= 1.503 milliseconds (cumulative count 9999995)
+100.000% &lt;= 3.103 milliseconds (cumulative count 10000000)
+
+Summary:
+  throughput summary: 1109139.38 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.081     0.008     0.079     0.127     0.167     2.511
+</pre></div>
+</div>
+</div>
+<div class="section" id="without-sock-trace">
+<h3>Without Sock Trace<a class="headerlink" href="#without-sock-trace" title="Permalink to this headline">¶</a></h3>
+<p>Run below to disable trace:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tpa</span> <span class="n">cfg</span> <span class="nb">set</span> <span class="n">trace</span><span class="o">.</span><span class="n">enable</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>Then start the test again:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># taskset -c 1-20 redis-benchmark -h 192.168.1.10 --threads 20 -c 100 -t get -n 10000000
+====== GET ======
+  10000000 requests completed in 8.77 seconds
+  100 parallel clients
+  3 bytes payload
+  keep alive: 1
+  host configuration &quot;save&quot;: 3600 1 300 100 60 10000
+  host configuration &quot;appendonly&quot;: no
+  multi-thread: yes
+  threads: 20
+
+Latency by percentile distribution:
+0.000% &lt;= 0.015 milliseconds (cumulative count 243)
+50.000% &lt;= 0.079 milliseconds (cumulative count 6375418)
+75.000% &lt;= 0.087 milliseconds (cumulative count 7608571)
+87.500% &lt;= 0.103 milliseconds (cumulative count 8981182)
+93.750% &lt;= 0.119 milliseconds (cumulative count 9550252)
+96.875% &lt;= 0.127 milliseconds (cumulative count 9698107)
+98.438% &lt;= 0.143 milliseconds (cumulative count 9853538)
+99.219% &lt;= 0.175 milliseconds (cumulative count 9925384)
+99.609% &lt;= 0.343 milliseconds (cumulative count 9961212)
+99.805% &lt;= 0.647 milliseconds (cumulative count 9980991)
+99.902% &lt;= 0.799 milliseconds (cumulative count 9990437)
+99.951% &lt;= 0.903 milliseconds (cumulative count 9995162)
+99.976% &lt;= 0.991 milliseconds (cumulative count 9997708)
+99.988% &lt;= 1.055 milliseconds (cumulative count 9998797)
+99.994% &lt;= 1.119 milliseconds (cumulative count 9999404)
+99.997% &lt;= 1.167 milliseconds (cumulative count 9999698)
+99.998% &lt;= 1.223 milliseconds (cumulative count 9999863)
+99.999% &lt;= 1.271 milliseconds (cumulative count 9999926)
+100.000% &lt;= 1.343 milliseconds (cumulative count 9999965)
+100.000% &lt;= 1.391 milliseconds (cumulative count 9999981)
+100.000% &lt;= 1.463 milliseconds (cumulative count 9999992)
+100.000% &lt;= 2.543 milliseconds (cumulative count 9999996)
+100.000% &lt;= 2.583 milliseconds (cumulative count 9999998)
+100.000% &lt;= 2.607 milliseconds (cumulative count 9999999)
+100.000% &lt;= 2.655 milliseconds (cumulative count 10000000)
+100.000% &lt;= 2.655 milliseconds (cumulative count 10000000)
+
+Cumulative distribution of latencies:
+89.812% &lt;= 0.103 milliseconds (cumulative count 8981182)
+99.484% &lt;= 0.207 milliseconds (cumulative count 9948387)
+99.591% &lt;= 0.303 milliseconds (cumulative count 9959097)
+99.653% &lt;= 0.407 milliseconds (cumulative count 9965254)
+99.715% &lt;= 0.503 milliseconds (cumulative count 9971516)
+99.784% &lt;= 0.607 milliseconds (cumulative count 9978430)
+99.849% &lt;= 0.703 milliseconds (cumulative count 9984855)
+99.909% &lt;= 0.807 milliseconds (cumulative count 9990856)
+99.952% &lt;= 0.903 milliseconds (cumulative count 9995162)
+99.980% &lt;= 1.007 milliseconds (cumulative count 9998011)
+99.993% &lt;= 1.103 milliseconds (cumulative count 9999302)
+99.998% &lt;= 1.207 milliseconds (cumulative count 9999829)
+99.999% &lt;= 1.303 milliseconds (cumulative count 9999947)
+100.000% &lt;= 1.407 milliseconds (cumulative count 9999985)
+100.000% &lt;= 1.503 milliseconds (cumulative count 9999995)
+100.000% &lt;= 3.103 milliseconds (cumulative count 10000000)
+
+Summary:
+  throughput summary: 1140771.25 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.077     0.008     0.079     0.119     0.159     2.655
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="appendix">
+<h2>Appendix<a class="headerlink" href="#appendix" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="hardware">
+<h3>Hardware<a class="headerlink" href="#hardware" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Intel(R) Xeon(R) Platinum 8260 CPU @ 2.40GHz
+Mellanox ConnectX-5 25Gbps
+</pre></div>
+</div>
+</div>
+<div class="section" id="results-with-kernel-tcp">
+<h3>Results with Kernel TCP<a class="headerlink" href="#results-with-kernel-tcp" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># taskset -c 1-20 redis-benchmark -h 192.168.1.10 --threads 20 -c 100 -t get -n 10000000
+====== GET ======
+  10000000 requests completed in 47.44 seconds
+  100 parallel clients
+  3 bytes payload
+  keep alive: 1
+  host configuration &quot;save&quot;: 3600 1 300 100 60 10000
+  host configuration &quot;appendonly&quot;: no
+  multi-thread: yes
+  threads: 20
+
+Latency by percentile distribution:
+0.000% &lt;= 0.047 milliseconds (cumulative count 1)
+50.000% &lt;= 0.399 milliseconds (cumulative count 5397185)
+75.000% &lt;= 0.519 milliseconds (cumulative count 7518625)
+87.500% &lt;= 0.607 milliseconds (cumulative count 8779787)
+93.750% &lt;= 0.751 milliseconds (cumulative count 9384364)
+96.875% &lt;= 0.783 milliseconds (cumulative count 9748247)
+98.438% &lt;= 0.799 milliseconds (cumulative count 9852298)
+99.219% &lt;= 0.823 milliseconds (cumulative count 9928968)
+99.609% &lt;= 0.847 milliseconds (cumulative count 9963131)
+99.805% &lt;= 0.887 milliseconds (cumulative count 9982340)
+99.902% &lt;= 0.959 milliseconds (cumulative count 9990268)
+99.951% &lt;= 1.079 milliseconds (cumulative count 9995194)
+99.976% &lt;= 1.199 milliseconds (cumulative count 9997680)
+99.988% &lt;= 1.327 milliseconds (cumulative count 9998830)
+99.994% &lt;= 1.487 milliseconds (cumulative count 9999405)
+99.997% &lt;= 1.655 milliseconds (cumulative count 9999702)
+99.998% &lt;= 1.855 milliseconds (cumulative count 9999849)
+99.999% &lt;= 2.135 milliseconds (cumulative count 9999924)
+100.000% &lt;= 2.303 milliseconds (cumulative count 9999962)
+100.000% &lt;= 2.511 milliseconds (cumulative count 9999981)
+100.000% &lt;= 2.607 milliseconds (cumulative count 9999991)
+100.000% &lt;= 2.639 milliseconds (cumulative count 9999996)
+100.000% &lt;= 2.647 milliseconds (cumulative count 9999998)
+100.000% &lt;= 2.663 milliseconds (cumulative count 10000000)
+100.000% &lt;= 2.663 milliseconds (cumulative count 10000000)
+
+Cumulative distribution of latencies:
+0.006% &lt;= 0.103 milliseconds (cumulative count 593)
+0.155% &lt;= 0.207 milliseconds (cumulative count 15510)
+1.130% &lt;= 0.303 milliseconds (cumulative count 112989)
+61.612% &lt;= 0.407 milliseconds (cumulative count 6161174)
+74.006% &lt;= 0.503 milliseconds (cumulative count 7400583)
+87.798% &lt;= 0.607 milliseconds (cumulative count 8779787)
+90.085% &lt;= 0.703 milliseconds (cumulative count 9008465)
+98.855% &lt;= 0.807 milliseconds (cumulative count 9885486)
+99.852% &lt;= 0.903 milliseconds (cumulative count 9985242)
+99.927% &lt;= 1.007 milliseconds (cumulative count 9992734)
+99.959% &lt;= 1.103 milliseconds (cumulative count 9995868)
+99.978% &lt;= 1.207 milliseconds (cumulative count 9997760)
+99.987% &lt;= 1.303 milliseconds (cumulative count 9998661)
+99.991% &lt;= 1.407 milliseconds (cumulative count 9999141)
+99.994% &lt;= 1.503 milliseconds (cumulative count 9999441)
+99.996% &lt;= 1.607 milliseconds (cumulative count 9999639)
+99.998% &lt;= 1.703 milliseconds (cumulative count 9999762)
+99.998% &lt;= 1.807 milliseconds (cumulative count 9999822)
+99.999% &lt;= 1.903 milliseconds (cumulative count 9999873)
+99.999% &lt;= 2.007 milliseconds (cumulative count 9999898)
+99.999% &lt;= 2.103 milliseconds (cumulative count 9999918)
+100.000% &lt;= 3.103 milliseconds (cumulative count 10000000)
+
+Summary:
+  throughput summary: 210774.81 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.454     0.040     0.399     0.767     0.815     2.663
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="internals.html" class="btn btn-neutral float-left" title="Libtpa Internals" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2023, ByteDance Ltd. and/or its Affiliates.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
