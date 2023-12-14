@@ -71,6 +71,8 @@ ssize_t ut_write(struct tcp_sock *tsock, size_t size)
 	if (!ut_test_opts.with_zerocopy) {
 		char buf[size];
 
+		/* to make gcc12 happy */
+		memset(buf, 0, sizeof(buf));
 		ret = tpa_write(tsock->sid, buf, size);
 		goto out;
 	}
