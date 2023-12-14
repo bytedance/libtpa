@@ -138,7 +138,7 @@ struct tpa_worker *tpa_worker_init(void)
 		return NULL;
 	}
 
-	id = __sync_fetch_and_add_8(&next_worker, 1);
+	id = __sync_fetch_and_add_4(&next_worker, 1);
 	if (id >= tpa_cfg.nr_worker) {
 		LOG_ERR("too many worker initialization");
 		return NULL;
