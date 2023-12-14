@@ -19,3 +19,7 @@ that doesn't require SR-IOV.
 
 This document lists the NICs that Libtpa currently supports, with some
 extra information you may need to set it up correctly for enabling Libtpa.
+
+You might want to try the :ref:`AF_XDP<nic_xdp>` virtual NIC if you
+don't have the NICs listed here.
+This will give you a quick glimpse of what Libtpa looks like.
