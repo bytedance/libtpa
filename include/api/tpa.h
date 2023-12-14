@@ -32,9 +32,9 @@ struct tpa_event {
 
 struct tpa_iovec {
 	void    *iov_base;
-	uint32_t iov_phys;
+	uint64_t iov_phys;
+	uint32_t iov_len;
 	uint32_t iov_reserved;
-	size_t   iov_len;
 	void    *iov_param;
 	union {
 		void (*iov_read_done)(void *iov_base, void *iov_param);
