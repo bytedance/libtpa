@@ -14,6 +14,9 @@ pkg_list="libnl-3-dev
 	  net-tools
 	  ethtool"
 
+deb_version=$(awk -F '.' '{print $1}' /etc/debian_version)
+[ "$deb_version" -eq 12 ] && pkg_list+=" libsystemd-dev"
+
 apt install -y $pkg_list
 
 for arg in $@; do
