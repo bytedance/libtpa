@@ -89,7 +89,7 @@ void tpad_init(void)
 
 		env[idx++] = make_env("TPAD_SOCK_FILE", tpa_cfg.sock_file);
 		env[idx++] = make_env("TPAD_SOCK_TRACE_FILE", tpa_cfg.sock_trace_file);
-		env[idx++] = make_env("TPAD_DEV_NAME", dev.name ? dev.name : "");
+		env[idx++] = make_env("TPAD_DEV_NAME", dev.name);
 		env[idx++] = make_env("TPAD_ARCHIVE_DIR", tpa_log_root_get());
 
 		/*
