@@ -60,14 +60,14 @@ install: $(SUBDIRS) static
 	$(Q)echo "  INSTALL -> $(INSTALL_ROOT)"
 	$(Q)mkdir -p $(INSTALL_ROOT)
 	$(Q)echo $(shell buildtools/get-ver.sh) > $(INSTALL_ROOT)/version
-	$(Q)install $(BUILD_ROOT)/libtpa*   $(INSTALL_ROOT)
-	$(Q)install $(BIN_ROOT)/app/*          $(INSTALL_ROOT)
-	$(Q)install $(BIN_ROOT)/tpad/*      $(INSTALL_ROOT)
-	$(Q)install $(BIN_ROOT)/tools/*        $(INSTALL_ROOT)
-	$(Q)install $(SRC_ROOT)/include/api/*  $(INSTALL_ROOT)
-	$(Q)install $(BIN_ROOT)/tools/tpa   /usr/bin/tpa
-	$(Q)install $(BIN_ROOT)/app/*          /usr/bin
-	$(Q)install $(BUILD_ROOT)/libtpa.pc /usr/share/pkgconfig
+	$(Q)install $(BUILD_ROOT)/libtpa*         $(INSTALL_ROOT)
+	$(Q)install $(BIN_ROOT)/app/*             $(INSTALL_ROOT)
+	$(Q)install $(BIN_ROOT)/tpad/*            $(INSTALL_ROOT)
+	$(Q)install $(BIN_ROOT)/tools/*           $(INSTALL_ROOT)
+	$(Q)install $(SRC_ROOT)/include/api/*     $(INSTALL_ROOT)
+	$(Q)install $(BIN_ROOT)/tools/tpa         /usr/bin
+	$(Q)install $(BIN_ROOT)/app/*             /usr/bin
+	$(Q)install $(BUILD_ROOT)/libtpa.pc       /usr/share/pkgconfig
 
 scan-build: clean
 	scan-build make
