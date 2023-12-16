@@ -69,6 +69,14 @@ static void terminate_one_sock(struct tcp_sock *tsock, int fd, int ifindex)
 	}
 }
 
+static void tpad_symlink(const char *target, const char *linkpath)
+{
+	if (symlink(target, linkpath) < 0) {
+		LOG_WARN("failed to symlink %s -> %s: %s",
+			 target, linkpath, strerror(errno));
+	}
+}
+
 void sock_termination(void)
 {
 	struct archive_ctx ctx;
@@ -88,7 +96,7 @@ void sock_termination(void)
 	unlink(tpad.sock_file);
 
 	if (id != UINT64_MAX)
-		symlink(archive_path(&ctx, id), tpad.sock_file);
+		tpad_symlink(archive_path(&ctx, id), tpad.sock_file);
 
 	ifindex = if_nametoindex(tpad.eth_dev);
 	if (ifindex == 0) {
@@ -157,7 +165,7 @@ void sock_archive(void)
 
 	tpa_snprintf(link_path, sizeof(link_path), "%s/socktrace",
 		    dirname(strdup(tpad.sock_trace_file)));
-	symlink(archive_path(&ctx, id), link_path);
+	tpad_symlink(archive_path(&ctx, id), link_path);
 
 	TSOCK_TRACE_FOREACH(trace) {
 		if (trace->sid < 0)

@@ -126,9 +126,7 @@ static int poll_stdin(void)
 	if (!has_input)
 		return 0;
 
-	line[0] = '\0';
-	fgets(line, sizeof(line), stdin);
-	if (strlen(line) == 0)
+	if (fgets(line, sizeof(line), stdin) == NULL)
 		return -1;
 
 	return write_connection(line);

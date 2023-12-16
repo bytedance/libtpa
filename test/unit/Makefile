@@ -9,6 +9,7 @@ endif
 CFLAGS += -I$(SRC_ROOT)/include
 CFLAGS += -DALLOW_EXPERIMENTAL_API -DTPA_DEBUG
 CFLAGS += -Wno-unused-function
+CFLAGS += -Wno-unused-result
 CFLAGS += $(shell $(SRC_ROOT)/buildtools/dpdk-pkg-config --cflags)
 
 LIBS  = $(OBJ_ROOT)/src/tpa-core.a
