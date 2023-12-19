@@ -53,10 +53,7 @@ CFLAGS += -Wall -Werror -Wno-packed-not-aligned -Wno-format-truncation
 CFLAGS += -Wno-address-of-packed-member
 
 LDFLAGS := $(EXTRA_LDFLAGS)
-LDFLAGS += -lpthread -ldl -lnuma -lpcap
-ifeq ($(NIC_TYPE),mlnx)
-LDFLAGS += -libverbs -lmlx5
-endif
+LDFLAGS += -lpthread -lnuma
 
 ifeq ($(BUILD_MODE),asan)
 CFLAGS  += -fsanitize=address
