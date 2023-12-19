@@ -69,24 +69,6 @@ static struct cfg_spec net_cfg_specs[] = {
 	}
 };
 
-static struct nic_spec nic_spec_list[] = {
-	{
-	#if RTE_VERSION >= RTE_VERSION_NUM(22,11,0,0)
-		.name = "mlx5_pci",
-	#else
-		.name = "net_mlx5",
-	#endif
-		.type = DEV_NIC_MLNX,
-		.rx_burst_cap = 64
-	},
-};
-
-static struct nic_spec nic_unknow = {
-	.name = "unknown",
-	.type = DEV_NIC_UNKNOWN,
-	.rx_burst_cap = 32
-};
-
 static int net_dev_mtu_get(void)
 {
 	struct ifreq ifr;
@@ -126,24 +108,9 @@ int net_dev_init_early(void)
 	return 0;
 }
 
-static struct dev_port *get_port_by_name(const char *name)
-{
-	int i;
-
-	if (!name)
-		return NULL;
-
-	for (i = 0; i < dev.nr_port; i++) {
-		if (strcmp(dev.ports[i].name, name) == 0)
-			return &dev.ports[i];
-	}
-
-	return NULL;
-}
-
 static void handle_link_change(const char *name, int state)
 {
-	struct dev_port *port = get_port_by_name(name);
+	struct dpdk_port *port = get_dpdk_port_by_name(name);
 
 	if (!port || state == port->state)
 		return;
@@ -151,7 +118,7 @@ static void handle_link_change(const char *name, int state)
 	port->state = state;
 
 	LOG_WARN("handle port %hu: %s/%s link %s\n", port->port_id, port->name,
-		 port->device_id, state == DEV_LINK_UP ? "up" : "down");
+		 port->device_id, state == PORT_LINK_UP ? "up" : "down");
 }
 
 static int is_bond_slave_backup(const char *slave)
@@ -180,8 +147,8 @@ static 	char bonding_path[PATH_MAX];
 int parse_bonding_proc_file(const char *path)
 {
 	char line[1024];
-	char slave[DEV_INFO_LEN];
-	char state[DEV_INFO_LEN];
+	char slave[PORT_INFO_LEN];
+	char state[PORT_INFO_LEN];
 	FILE *file;
 	int status;
 
@@ -200,9 +167,9 @@ int parse_bonding_proc_file(const char *path)
 
 			if (strlen(slave) != 0) {
 				if (strcmp(state, "up") == 0 && !is_bond_slave_backup(slave))
-					status = DEV_LINK_UP;
+					status = PORT_LINK_UP;
 				else
-					status = DEV_LINK_DOWN;
+					status = PORT_LINK_DOWN;
 
 				handle_link_change(slave, status);
 			}
@@ -256,7 +223,7 @@ static int bonding_init(void)
 			LOG_ERR("bonding init: invalid slave device id: %s", device_id);
 			return -1;
 		}
-		tpa_snprintf(dev.ports[port_id].name, sizeof(dev.ports[port_id].name), "%s", slave);
+		set_dpdk_port_name(port_id, slave);
 
 		LOG("bonding init: port %hu: name=%s, device_id=%s", port_id, slave, device_id);
 	} while (1);
@@ -265,78 +232,6 @@ static int bonding_init(void)
 	parse_bonding_proc_file(bonding_path);
 
 	ctrl_timeout_event_create(1, link_detect, NULL, "link-detect");
-
-	return 0;
-}
-
-static struct nic_spec *nic_spec_find(int port_id)
-{
-	struct rte_eth_dev_info dev_info;
-	int i;
-
-	if (rte_eth_dev_info_get(port_id, &dev_info) < 0)
-		goto out;
-
-	for (i = 0; i < ARRAY_SIZE(nic_spec_list); i++) {
-		if (strcmp(dev_info.driver_name, nic_spec_list[i].name) == 0)
-			return &nic_spec_list[i];
-	}
-
-out:
-	return &nic_unknow;
-}
-
-struct nic_spec *nic_spec_find_by_type(int type)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(nic_spec_list); i++) {
-		if (nic_spec_list[i].type == type)
-			return &nic_spec_list[i];
-	}
-
-	return &nic_unknow;
-}
-
-int dev_port_init(void)
-{
-	uint16_t i;
-	uint64_t txq_size;
-	uint64_t rxq_size;
-	struct nic_spec *nic_spec;
-
-	txq_size = tpa_cfg.nr_worker * sizeof(struct dev_txq);
-	rxq_size = tpa_cfg.nr_worker * sizeof(struct dev_rxq);
-
-	for (i = 0; i < dev.nr_port; i++) {
-		dev.ports[i].port_id = i;
-		dev.ports[i].state = DEV_LINK_UP;
-		dev.ports[i].nr_rx_burst = BATCH_SIZE;
-
-		dev.ports[i].txq = rte_malloc(NULL, txq_size, 64);
-		dev.ports[i].rxq = rte_malloc(NULL, rxq_size, 64);
-		if (!dev.ports[i].txq || !dev.ports[i].rxq) {
-			LOG_ERR("dev port queue malloc error");
-			return -1;
-		}
-
-		memset(dev.ports[i].txq, 0, txq_size);
-		memset(dev.ports[i].rxq, 0, rxq_size);
-
-		nic_spec = nic_spec_find(i);
-		if (nic_spec->type == DEV_NIC_UNKNOWN)
-			LOG_WARN("detected dpdk port %hu: unknown drv name", i);
-
-		dev.ports[i].nic_spec = nic_spec;
-		dev.ports[i].nr_rx_burst = nic_spec->rx_burst_cap;
-
-		rte_eth_dev_get_name_by_port(i, dev.ports[i].device_id);
-		LOG("detected dpdk port %hu: %s, drv_name %s",
-		    i, dev.ports[i].device_id, nic_spec->name);
-	}
-
-	if (dev.nr_port == 2)
-		return bonding_init();
 
 	return 0;
 }
@@ -355,10 +250,13 @@ static void dev_mac_init(void)
 int net_dev_init(void)
 {
 	assert(tpa_cfg.nr_dpdk_port <= MAX_PORT_NR);
+	dev.ports = dpdk_ports;
 	dev.nr_port = tpa_cfg.nr_dpdk_port;
+	if (dev.nr_port == 2) {
+		if (bonding_init() < 0)
+			return -1;
+	}
 
-	if (dev_port_init() == -1)
-		return -1;
 	dev_mac_init();
 
 	if (pthread_spin_init(&dev.lock, PTHREAD_PROCESS_PRIVATE) != 0) {
@@ -367,6 +265,7 @@ int net_dev_init(void)
 	}
 
 	pthread_mutex_init(&dev.mutex, NULL);
+
 
 	return 0;
 }

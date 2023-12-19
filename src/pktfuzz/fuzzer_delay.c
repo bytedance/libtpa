@@ -29,7 +29,7 @@ static inline int get_delay_usec(struct fuzz_num *usec, int max)
 	return RTE_MIN(usec->num, max);
 }
 
-static inline void do_delay(struct dev_txq *txq, struct fuzz_delay_cfg *delay)
+static inline void do_delay(struct port_txq *txq, struct fuzz_delay_cfg *delay)
 {
 	/*
 	 * need do copy here as we chain delayed pkts, which could not
@@ -49,7 +49,7 @@ static inline void do_delay(struct dev_txq *txq, struct fuzz_delay_cfg *delay)
 	delay->stats.total += 1;
 }
 
-static void delay_fuzz(struct dev_txq *txq)
+static void delay_fuzz(struct port_txq *txq)
 {
 	struct fuzz_delay_cfg *delay = &fuzz_cfg.delay;
 
@@ -60,7 +60,7 @@ static void delay_fuzz(struct dev_txq *txq)
 		do_delay(txq, delay);
 }
 
-static void delay_run(struct dev_txq *txq)
+static void delay_run(struct port_txq *txq)
 {
 	struct packet *pkt;
 	uint64_t now = TSC_TO_US(rte_rdtsc());

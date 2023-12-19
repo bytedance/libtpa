@@ -53,6 +53,25 @@ static struct dpdk_cfg dpdk_cfg = {
 
 struct packet_pool *generic_pkt_pool;
 static uint32_t max_rx_pkt_len = 0;
+struct dpdk_port *dpdk_ports;
+
+static struct nic_spec nic_spec_list[] = {
+	{
+	#if RTE_VERSION >= RTE_VERSION_NUM(20,11,0,0)
+		.name = "mlx5_pci",
+	#else
+		.name = "net_mlx5",
+	#endif
+		.type = NIC_TYPE_MLNX,
+		.rx_burst_cap = 64
+	},
+};
+
+static struct nic_spec nic_unknow = {
+	.name = "unknown",
+	.type = NIC_TYPE_UNKNOWN,
+	.rx_burst_cap = 32
+};
 
 static void show_port_stats(struct shell_buf *reply, int port)
 {
@@ -139,7 +158,7 @@ static void do_port_stats_get(struct shell_buf *reply, int port_id)
 	}
 
 	shell_append_reply(reply, "PORT[%d](%s):\n", port_id,
-			   dev.ports[port_id].state == DEV_LINK_UP ? "UP" : "DOWN");
+			   dev.ports[port_id].state == PORT_LINK_UP ? "UP" : "DOWN");
 	show_port_stats(reply, port_id);
 	show_port_xstats(reply, port_id);
 	shell_append_reply(reply, "\n");
@@ -190,9 +209,54 @@ static const struct shell_cmd port_cmd = {
 	.handler = cmd_port,
 };
 
-static void dpdk_port_init(uint16_t port, int nr_queue)
+struct dpdk_port *get_dpdk_port_by_name(const char *name)
 {
-	int socket_id = rte_eth_dev_socket_id(port);
+	int i;
+
+	if (!name)
+		return NULL;
+
+	for (i = 0; i < tpa_cfg.nr_dpdk_port; i++) {
+		if (strcmp(dev.ports[i].name, name) == 0)
+			return &dev.ports[i];
+	}
+
+	return NULL;
+}
+
+void set_dpdk_port_name(uint32_t port_id, const char *name)
+{
+	struct dpdk_port *port;
+
+	if (port_id >= tpa_cfg.nr_dpdk_port)
+		return;
+
+	port = &dpdk_ports[port_id];
+	tpa_snprintf(port->name, sizeof(port->name), "%s", name);
+}
+
+static struct nic_spec *nic_spec_find(int port_id)
+{
+	struct rte_eth_dev_info dev_info;
+	int i;
+
+	if (rte_eth_dev_info_get(port_id, &dev_info) < 0)
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(nic_spec_list); i++) {
+		if (strcmp(dev_info.driver_name, nic_spec_list[i].name) == 0)
+			return &nic_spec_list[i];
+	}
+
+out:
+	return &nic_unknow;
+}
+
+static void dpdk_port_start(struct dpdk_port *port)
+{
+	int port_id = port->port_id;
+	int nr_queue = port->nr_queue;
+	int socket_id = rte_eth_dev_socket_id(port_id);
 	struct rte_eth_dev_info dev_info;
 	struct rte_eth_rxconf rxq_conf;
 	struct rte_eth_txconf txq_conf;
@@ -201,10 +265,11 @@ static void dpdk_port_init(uint16_t port, int nr_queue)
 	struct rte_eth_conf port_conf;
 	struct rte_ether_addr mac;
 	struct rte_mempool *mempool;
+	struct nic_spec *nic_spec;
 	int ret;
 	int i;
 
-	rte_eth_dev_info_get(port, &dev_info);
+	rte_eth_dev_info_get(port_id, &dev_info);
 
 	memset(&port_conf, 0, sizeof(port_conf));
 	dpdk_enable_jumbo_frame(&port_conf, max_rx_pkt_len);
@@ -213,25 +278,25 @@ static void dpdk_port_init(uint16_t port, int nr_queue)
 	port_conf.lpbk_mode = 1;
 
 	LOG("init port %hu: nr_queue=%hu rx_offload=%lu tx_offload=%lu",
-	    port, nr_queue, port_conf.rxmode.offloads, port_conf.txmode.offloads);
+	    port_id, nr_queue, port_conf.rxmode.offloads, port_conf.txmode.offloads);
 
-	ret = rte_eth_dev_configure(port, nr_queue, nr_queue, &port_conf);
+	ret = rte_eth_dev_configure(port_id, nr_queue, nr_queue, &port_conf);
 	if (ret != 0)
 		rte_panic("failed to configure device: %d", ret);
 
-	ret = rte_eth_dev_adjust_nb_rx_tx_desc(port, &nr_rx_desc, &nr_tx_desc);
+	ret = rte_eth_dev_adjust_nb_rx_tx_desc(port_id, &nr_rx_desc, &nr_tx_desc);
 	if (ret < 0)
 		rte_panic("failed to adjust number of rx tx desc: %d\n", ret);
 
-	ret = rte_eth_macaddr_get(port, &mac);
+	ret = rte_eth_macaddr_get(port_id, &mac);
 	if (ret < 0)
-		rte_panic("failed to get mac address for port %hu: %d\n", port, ret);
+		rte_panic("failed to get mac address for port %hu: %d\n", port_id, ret);
 
 	rxq_conf = dev_info.default_rxconf;
 	rxq_conf.offloads = port_conf.rxmode.offloads;
 	mempool = packet_pool_get_mempool(generic_pkt_pool);
 	for (i = 0; i < nr_queue; i++) {
-		ret = rte_eth_rx_queue_setup(port, i, nr_rx_desc, socket_id,
+		ret = rte_eth_rx_queue_setup(port_id, i, nr_rx_desc, socket_id,
 					     &rxq_conf, mempool);
 		if (ret < 0)
 			rte_panic("failed to setup rx queue %hu: %d", i, ret);
@@ -240,32 +305,77 @@ static void dpdk_port_init(uint16_t port, int nr_queue)
 	txq_conf = dev_info.default_txconf;
 	txq_conf.offloads = port_conf.txmode.offloads;
 	for (i = 0; i < nr_queue; i++) {
-		ret = rte_eth_tx_queue_setup(port, i, nr_tx_desc, socket_id, &txq_conf);
+		ret = rte_eth_tx_queue_setup(port_id, i, nr_tx_desc, socket_id, &txq_conf);
 		if (ret < 0)
 			rte_panic("failed to setup tx queue %u: %d", i, ret);
 	}
 
-	rte_flow_isolate(port, 1, NULL);
+	rte_flow_isolate(port_id, 1, NULL);
 
-	if (rte_eth_dev_start(port) < 0)
-		rte_panic("failed to start dpdk port %hu", port);
+	if (rte_eth_dev_start(port_id) < 0)
+		rte_panic("failed to start dpdk port %hu", port_id);
 
-	LOG("started port %hu %02X:%02X:%02X:%02X:%02X:%02X", port,
+	nic_spec = nic_spec_find(port_id);
+	port->nic_spec = nic_spec;
+	port->nr_rx_burst = nic_spec->rx_burst_cap;
+
+	rte_eth_dev_get_name_by_port(port_id, port->device_id);
+	LOG("started port %hu %s <drv_name=%s> %02X:%02X:%02X:%02X:%02X:%02X",
+	    port_id, port->device_id, nic_spec->name,
 	    mac.addr_bytes[0], mac.addr_bytes[1], mac.addr_bytes[2],
 	    mac.addr_bytes[3], mac.addr_bytes[4], mac.addr_bytes[5]);
-
-	tpa_cfg.nr_dpdk_port += 1;
 }
 
-static void port_init(int nr_queue)
+int dpdk_port_init(struct dpdk_port *port, int port_id, int nr_queue)
 {
-	uint16_t i;
+	uint64_t txq_size;
+	uint64_t rxq_size;
 
-	tpa_cfg.nr_dpdk_port = 0;
-	for (i = 0; i < rte_eth_dev_count_avail(); i++)
-		dpdk_port_init(i, nr_queue);
+	txq_size = nr_queue * sizeof(struct port_txq);
+	rxq_size = nr_queue * sizeof(struct port_rxq);
+
+	memset(port, 0, sizeof(struct dpdk_port));
+	port->port_id = port_id;
+	port->nr_queue = nr_queue;
+	port->state = PORT_LINK_UP;
+	port->nr_rx_burst = BATCH_SIZE;
+
+	port->txq = rte_malloc(NULL, txq_size, 64);
+	port->rxq = rte_malloc(NULL, rxq_size, 64);
+	if (!port->txq || !port->rxq) {
+		LOG_ERR("dev port queue malloc error");
+		return -1;
+	}
+
+	memset(port->txq, 0, txq_size);
+	memset(port->rxq, 0, rxq_size);
+
+	return 0;
+}
+
+static int port_init(int nr_queue)
+{
+	int nr_port = rte_eth_dev_count_avail();
+	int i;
+
+	if (nr_port <= 0)
+		return -1;
 
 	shell_register_cmd(&port_cmd);
+
+	dpdk_ports = rte_malloc(NULL, sizeof(struct dpdk_port) * nr_port, 64);
+	if (!dpdk_ports) {
+		LOG_ERR("failed to allocate memory for dpdk ports");
+		return -1;
+	}
+
+	tpa_cfg.nr_dpdk_port = nr_port;
+	for (i = 0; i < nr_port; i++) {
+		dpdk_port_init(&dpdk_ports[i], i, nr_queue);
+		dpdk_port_start(&dpdk_ports[i]);
+	}
+
+	return 0;
 }
 
 /* A rough estimation */

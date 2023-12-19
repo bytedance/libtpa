@@ -18,7 +18,7 @@ static inline void swap_packet(struct packet **a, struct packet **b)
 	*b = tmp;
 }
 
-static inline void do_reorder(struct dev_txq *txq, struct fuzz_reorder_cfg *reorder)
+static inline void do_reorder(struct port_txq *txq, struct fuzz_reorder_cfg *reorder)
 {
 	if (txq->nr_pkt < 2)
 		return;
@@ -27,7 +27,7 @@ static inline void do_reorder(struct dev_txq *txq, struct fuzz_reorder_cfg *reor
 	reorder->stats.reordered += 1;
 }
 
-static void reorder_fuzz(struct dev_txq *txq)
+static void reorder_fuzz(struct port_txq *txq)
 {
 	struct fuzz_reorder_cfg *reorder = &fuzz_cfg.reorder;
 

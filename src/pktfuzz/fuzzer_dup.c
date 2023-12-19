@@ -19,7 +19,7 @@ static inline int get_dup_count(struct fuzz_num *nr_pkt, int max)
 	return RTE_MIN(nr_pkt->num, max);
 }
 
-static inline void do_dup(struct dev_txq *txq, struct fuzz_dup_cfg *dup)
+static inline void do_dup(struct port_txq *txq, struct fuzz_dup_cfg *dup)
 {
 	struct packet *pkt = txq->pkts[txq->nr_pkt - 1];
 	struct rte_tcp_hdr *tcp = packet_tcp_hdr(pkt);
@@ -36,7 +36,7 @@ static inline void do_dup(struct dev_txq *txq, struct fuzz_dup_cfg *dup)
 	dup->stats.total += dup_count;
 }
 
-static void dup_fuzz(struct dev_txq *txq)
+static void dup_fuzz(struct port_txq *txq)
 {
 	struct fuzz_dup_cfg *dup = &fuzz_cfg.dup;
 

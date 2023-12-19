@@ -18,7 +18,7 @@ static inline int get_drop_count(struct fuzz_num *nr_pkt, int max)
 	return RTE_MIN(nr_pkt->num, max);
 }
 
-static inline int drop_pkts_match_port(struct dev_txq *txq, int port)
+static inline int drop_pkts_match_port(struct port_txq *txq, int port)
 {
 	struct packet *pkt;
 	struct rte_tcp_hdr *tcp;
@@ -43,7 +43,7 @@ static inline int drop_pkts_match_port(struct dev_txq *txq, int port)
 	return nr_drop;
 }
 
-static inline void do_drop(struct dev_txq *txq, struct fuzz_drop_cfg *drop)
+static inline void do_drop(struct port_txq *txq, struct fuzz_drop_cfg *drop)
 {
 	int nr_to_drop;
 
@@ -65,7 +65,7 @@ static inline void do_drop(struct dev_txq *txq, struct fuzz_drop_cfg *drop)
 	drop->stats.dropped += nr_to_drop;
 }
 
-static void drop_fuzz(struct dev_txq *txq)
+static void drop_fuzz(struct port_txq *txq)
 {
 	struct fuzz_drop_cfg *drop = &fuzz_cfg.drop;
 

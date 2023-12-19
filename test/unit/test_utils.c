@@ -714,13 +714,13 @@ void ut_ndp_input(struct packet *pkt)
 
 void ut_tcp_input_raw(struct tcp_sock *tsock, struct packet **pkts, uint16_t nr_pkt)
 {
-	struct dev_rxq *rxq = dev_port_rxq(0, worker->queue);
+	struct port_rxq *rxq = dev_port_rxq(0, worker->queue);
 	int i;
 
 	assert(rxq->read == rxq->write);
 
 	for (i = 0; i < nr_pkt; i++)
-		rxq->pkts[(rxq->write++) & DEV_RXQ_MASK] = pkts[i];
+		rxq->pkts[(rxq->write++) & PORT_RXQ_MASK] = pkts[i];
 
 	while (tcp_input(worker, 0))
 		;
@@ -854,7 +854,7 @@ static int last_nr_output_pkt;
 static uint16_t do_ut_tcp_output(struct packet **pkts, uint16_t count, int skip_csum_verify)
 {
 	struct packet *pkt;
-	struct dev_txq *txq = dev_port_txq(0, worker->queue);
+	struct port_txq *txq = dev_port_txq(0, worker->queue);
 	uint16_t i = 0;
 	uint16_t nr_pkt;
 	uint32_t orig_len;
@@ -1306,12 +1306,15 @@ void ut_exit(void)
 	assert(rss_after - ut_rss_before_testing < 100);
 }
 
-static void ut_dev_port_init(void)
+static void ut_dpdk_port_init(void)
 {
-	dev.nr_port = MAX_PORT_NR;
-	dev_port_init();
+	dpdk_ports = rte_malloc(NULL, sizeof(struct dpdk_port) * 2, 64);
+
 	dev.nr_port = 1;
-	dev.ports[0].nic_spec = nic_spec_find_by_type(DEV_NIC_MLNX);
+	dev.ports = dpdk_ports;
+
+	dpdk_port_init(&dpdk_ports[0], 0, 1);
+	dpdk_port_init(&dpdk_ports[1], 1, 1);
 }
 
 void ut_init(int argc, char **argv)
@@ -1374,7 +1377,7 @@ void ut_init(int argc, char **argv)
 	init_arp_cache();
 
 	worker = tpa_worker_init();
-	ut_dev_port_init();
+	ut_dpdk_port_init();
 
 	ut_rss_before_testing = get_rss_size_in_mb();
 	atexit(ut_exit);

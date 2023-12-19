@@ -245,18 +245,18 @@ static void dump_worker(struct tpa_worker *worker, struct shell_buf *reply, int 
 			   "max_starvation", _US(worker->starvation.max) / 1e3,
 			   "nr_tsock", worker->nr_tsock,
 			   "nr_tsock_total", worker->nr_tsock_total,
-			   "dev_txq.size", TXQ_BUF_SIZE,
+			   "port_txq.size", TXQ_BUF_SIZE,
 			   "nr_ooo_mbuf", worker->nr_ooo_mbuf,
 			   "nr_in_process_mbuf", worker->nr_in_process_mbuf,
 			   "nr_write_mbuf", worker->nr_write_mbuf);
 
 	for (i = 0; i < dev.nr_port; i++) {
-		tpa_snprintf(buf, sizeof(buf), "dev_txq[%d].nr_pkt", i);
+		tpa_snprintf(buf, sizeof(buf), "port_txq[%d].nr_pkt", i);
 		shell_append_reply(reply, "\t%-32s: %hu\n", buf, dev_port_txq(i, worker->queue)->nr_pkt);
 	}
 
 	for (i = 0; i < dev.nr_port; i++) {
-		tpa_snprintf(buf, sizeof(buf), "dev_rxq[%d].nr_pkt", i);
+		tpa_snprintf(buf, sizeof(buf), "port_rxq[%d].nr_pkt", i);
 		shell_append_reply(reply, "\t%-32s: %u\n", buf,
 				   dev_port_rxq(i, worker->queue)->write - dev_port_rxq(i, worker->queue)->read);
 	}

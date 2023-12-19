@@ -39,7 +39,7 @@ static const struct fuzzer *fuzzer_find(const char *name)
 	return NULL;
 }
 
-void fuzz(struct dev_txq *txq)
+void fuzz(struct port_txq *txq)
 {
 	int i;
 
@@ -49,7 +49,7 @@ void fuzz(struct dev_txq *txq)
 	}
 }
 
-void fuzz_run(struct dev_txq *txq)
+void fuzz_run(struct port_txq *txq)
 {
 	int i;
 

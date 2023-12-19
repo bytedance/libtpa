@@ -160,7 +160,7 @@ static void cut_tail(struct packet *pkt, int size)
 	rte_pktmbuf_prepend(&pkt->mbuf, pkt->hdr_len);
 }
 
-static inline void do_cut(struct dev_txq *txq, struct fuzz_cut_cfg *cut, int payload_len)
+static inline void do_cut(struct port_txq *txq, struct fuzz_cut_cfg *cut, int payload_len)
 {
 	struct packet *pkt = pktfuzz_packet_copy(txq->pkts[txq->nr_pkt - 1]);
 	int size;
@@ -183,7 +183,7 @@ static inline void do_cut(struct dev_txq *txq, struct fuzz_cut_cfg *cut, int pay
 	cut->stats.total += 1;
 }
 
-static void cut_fuzz(struct dev_txq *txq)
+static void cut_fuzz(struct port_txq *txq)
 {
 	struct fuzz_cut_cfg *cut = &fuzz_cfg.cut;
 	struct packet *pkt;

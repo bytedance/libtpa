@@ -562,12 +562,12 @@ there. ``tpa worker`` dumps all the worker status::
             max_starvation                  : 322.983ms
             nr_tsock                        : 4
             nr_tsock_total                  : 8
-            dev_txq.size                    : 4096
+            port_txq.size                   : 4096
             nr_ooo_mbuf                     : 0
             nr_in_process_mbuf              : 0
             nr_write_mbuf                   : 0
-            dev_txq[0].nr_pkt               : 0
-            dev_rxq[0].nr_pkt               : 0
+            port_txq[0].nr_pkt              : 0
+            port_rxq[0].nr_pkt              : 0
             TCP_RTO_TIME_OUT                : 48
             ERR_NO_SOCK                     : 52
             PKT_RECV                        : 334407737

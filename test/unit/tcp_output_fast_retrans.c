@@ -315,7 +315,7 @@ static void test_tcp_output_fast_retrans_dev_txq_full(void)
 {
 	struct tcp_sock *tsock;
 	struct packet *pkt;
-	struct dev_txq *txq = dev_port_txq(0, worker->queue);
+	struct port_txq *txq = dev_port_txq(0, worker->queue);
 	uint32_t ack;
 	int ret;
 	int i;

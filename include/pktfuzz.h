@@ -187,11 +187,11 @@ static inline int num_is_set(struct fuzz_num *num)
 int parse_rate(struct fuzz_rate *rate, const char *opt);
 int parse_num(struct fuzz_num *num, const char *val, int type);
 
-struct dev_txq;
+struct port_txq;
 struct fuzzer {
 	const char *name;
-	void (*fuzz)(struct dev_txq *txq);
-	void (*run)(struct dev_txq * txq);
+	void (*fuzz)(struct port_txq *txq);
+	void (*run)(struct port_txq * txq);
 
 	int (*parse)(struct fuzz_opt *opts);
 	void (*help)(struct shell_buf *reply, struct fuzz_cfg *fuzz_cfg);
@@ -207,19 +207,19 @@ extern const struct fuzzer fuzzer_drop;
 extern int pktfuzz_enabled;
 extern struct fuzz_cfg fuzz_cfg;
 
-void fuzz(struct dev_txq *txq);
+void fuzz(struct port_txq *txq);
 struct packet *pktfuzz_packet_copy(struct packet *pkt);
 void pktfuzz_update_csum_offload(struct packet *pkt);
-void fuzz_run(struct dev_txq *txq);
+void fuzz_run(struct port_txq *txq);
 void pktfuzz_log(const char *fmt, ...);
 
-static inline void pktfuzz(struct dev_txq *txq)
+static inline void pktfuzz(struct port_txq *txq)
 {
 	if (unlikely(pktfuzz_enabled))
 		fuzz(txq);
 }
 
-static inline void pktfuzz_run(struct dev_txq *txq)
+static inline void pktfuzz_run(struct port_txq *txq)
 {
 	if (unlikely(pktfuzz_enabled))
 		fuzz_run(txq);

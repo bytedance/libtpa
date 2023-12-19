@@ -47,7 +47,7 @@ static void test_tcp_output_chain_basic(void)
 static void test_tcp_output_chain_dev_txq_full(void)
 {
 	struct tcp_sock *tsock;
-	struct dev_txq *txq = dev_port_txq(0, worker->queue);
+	struct port_txq *txq = dev_port_txq(0, worker->queue);
 	struct packet *pkt;
 	char buf[10];
 	int ret;
