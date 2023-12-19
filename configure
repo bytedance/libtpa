@@ -6,7 +6,7 @@
 
 BUILD_MODE="release"
 DPDK_VERSION="v20.11.3"
-NIC_TYPE="mlnx"
+MLNX_ONLY=
 
 usage()
 {
@@ -21,6 +21,7 @@ Supported options are:
   --release                      release build (default)
   --asan                         asan build
   --dpdk [version]               specify dpdk version (default v20.11.3)
+  --mlnx-only                    build with mlnx PMD only
 EOF
 
 	exit 1
@@ -46,6 +47,10 @@ parse_options()
 			DPDK_VERSION=$1
 			;;
 
+		"--mlnx-only")
+			MLNX_ONLY="yes"
+			;;
+
 		*)
 			usage
 			exit 1
@@ -61,7 +66,7 @@ gen_config()
 	cat > build/config.mk << EOF
 export BUILD_MODE   = $BUILD_MODE
 export DPDK_VERSION = $DPDK_VERSION
-export NIC_TYPE     = $NIC_TYPE
+export MLNX_ONLY    = $MLNX_ONLY
 EOF
 
 	echo "configs generated are:"

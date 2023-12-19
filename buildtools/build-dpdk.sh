@@ -54,9 +54,8 @@ config()
 	set_config CONFIG_RTE_KNI_KMOD    n
 	set_config CONFIG_RTE_EAL_IGB_UIO n
 
-	if [ "$NIC_TYPE" = "mlnx" ]; then
-		set_config CONFIG_RTE_LIBRTE_MLX5_PMD y
-	fi
+	# for building with make, we don't disable other drivers
+	set_config CONFIG_RTE_LIBRTE_MLX5_PMD y
 
 	if [ "$BUILD_MODE" = "debug" ]; then
 		set_config CONFIG_RTE_LIBRTE_MEMPOOL_DEBUG y
@@ -74,22 +73,17 @@ build_with_make()
 
 get_disable_driver_list()
 {
-	disable_list=""
+	[ -z "$MLNX_ONLY" ] && return
 
-	if [ "$NIC_TYPE" = "mlnx" ]; then
-		driver_list="net/mlx5 common/mlx5"
-	fi
-
-	enable_list="$driver_list
+	enable_list="net/mlx5
+		     common/mlx5
 		     bus/pci
 		     bus/vdev
-		     mempool/ring
-	"
+		     mempool/ring"
 
-	if [[ "$DPDK_VERSION" =~ "v22.11" ]]; then
-		enable_list="$enable_list bus/auxiliary"
-	fi
+	[[ "$DPDK_VERSION" =~ "v22.11" ]] && enable_list+=" bus/auxiliary"
 
+	disable_list=""
 	for i in drivers/*/*; do
 		[ -d "$i" ] || continue
 
