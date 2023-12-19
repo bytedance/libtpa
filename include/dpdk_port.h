@@ -11,6 +11,9 @@
 
 #include "cfg.h"
 
+#define NR_RX_DESC			4096
+#define NR_TX_DESC			4096
+
 #define BATCH_SIZE			64
 #define TXQ_BUF_SIZE			4096
 
