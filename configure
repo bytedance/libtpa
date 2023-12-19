@@ -1,0 +1,74 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2023, ByteDance Ltd. and/or its Affiliates
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+BUILD_MODE="release"
+DPDK_VERSION="v20.11.3"
+NIC_TYPE="mlnx"
+
+usage()
+{
+	error="$1"
+	[ -n "$error" ] && echo -e "error: $error\n"
+
+	cat << EOF
+usage: ./configure [options]
+
+Supported options are:
+  --debug                        debug build
+  --release                      release build (default)
+  --asan                         asan build
+  --dpdk [version]               specify dpdk version (default v20.11.3)
+EOF
+
+	exit 1
+}
+
+parse_options()
+{
+	while [ -n "$1" ]; do
+		case "$1" in
+		"--debug")
+			BUILD_MODE="debug"
+			;;
+		"--release")
+			BUILD_MODE="release"
+			;;
+		"--asan")
+			BUILD_MODE="asan"
+			;;
+
+		"--dpdk")
+			shift
+			[ -z "$1" ] && usage "missing argument for --dpdk option"
+			DPDK_VERSION=$1
+			;;
+
+		*)
+			usage
+			exit 1
+		esac
+
+		shift
+	done
+}
+
+gen_config()
+{
+	mkdir -p build
+	cat > build/config.mk << EOF
+export BUILD_MODE   = $BUILD_MODE
+export DPDK_VERSION = $DPDK_VERSION
+export NIC_TYPE     = $NIC_TYPE
+EOF
+
+	echo "configs generated are:"
+	echo
+
+	cat build/config.mk | sed 's/export/ /'
+}
+
+parse_options "$@"
+gen_config

@@ -4,10 +4,7 @@
 
 MAKEFLAGS += --no-print-directory
 
-export TPA_VERSION   = 1.0-rc0
-export BUILD_MODE   ?= release
-export DPDK_VERSION ?= v20.11.3
-export NIC_TYPE     ?= mlnx
+export TPA_VERSION = 1.0-rc0
 
 include buildtools/vars.mk
 
@@ -17,7 +14,7 @@ SUBDIRS = lib src test tools tpad app
 
 all: summary $(SUBDIRS)
 
-$(SUBDIRS):
+$(SUBDIRS): $(CONFIG_MK)
 	$(MAKE) -C $@
 
 test tools app: src lib

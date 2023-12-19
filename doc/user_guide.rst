@@ -128,7 +128,7 @@ With all setup, you can build libtpa simply by::
     If you want to switch to another DPDK version we currently support, say
     v22.11, you could::
 
-        export DPDK_VERSION=v22.11
+        ./configure --dpdk v22.11
         make
         make install
 

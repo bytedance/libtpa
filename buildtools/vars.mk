@@ -4,20 +4,14 @@
 
 export SRC_ROOT   = $(shell pwd)
 export BUILD_ROOT = $(SRC_ROOT)/build
+export CONFIG_MK  = $(BUILD_ROOT)/config.mk
 export OBJ_ROOT   = $(BUILD_ROOT)/objs
 export BIN_ROOT   = $(BUILD_ROOT)/bin
-export RTE_SDK    = $(BUILD_ROOT)/dpdk/$(DPDK_VERSION)
+export LIBTPA_A   = $(BUILD_ROOT)/libtpa.a
+export LIBTPA_SO  = $(BUILD_ROOT)/libtpa.so
 export INSTALL_ROOT = /usr/share/tpa
-export LIBTPA_A  = $(BUILD_ROOT)/libtpa.a
-export LIBTPA_SO = $(BUILD_ROOT)/libtpa.so
 
 export CC ?= gcc
-
-ifneq ($(V),)
-export Q=
-else
-export Q=@
-endif
 
 ARCH ?= $(shell uname -m)
 OS    = $(shell uname -o)
@@ -26,6 +20,19 @@ ifneq ($(MAKECMDGOALS),gtags)
 ifneq ($(OS),GNU/Linux)
 $(error libtpa builds only in GNU/Linux OS)
 endif
+
+ifeq ($(wildcard $(CONFIG_MK)),)
+$(error missing config; please run ./configure first)
+endif
+include $(CONFIG_MK)
+endif
+
+export RTE_SDK    = $(BUILD_ROOT)/dpdk/$(DPDK_VERSION)
+
+ifneq ($(V),)
+export Q=
+else
+export Q=@
 endif
 
 ifeq ($(ARCH),x86_64)
