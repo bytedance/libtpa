@@ -247,15 +247,41 @@ static void dev_mac_init(void)
 	}
 }
 
-int net_dev_init(void)
+static int dev_port_init(void)
 {
-	assert(tpa_cfg.nr_dpdk_port <= MAX_PORT_NR);
 	dev.ports = dpdk_ports;
+
+	/* FIXME: remove the barrier */
+	rte_smp_wmb();
 	dev.nr_port = tpa_cfg.nr_dpdk_port;
+
+	if (dev.nr_port == 0) {
+		/*
+		 * Return 0 here to not break ut
+		 * FIXME: we should return -1.
+		 */
+		return 0;
+	}
+
+	dev.caps = dev.ports[0].caps;
+
 	if (dev.nr_port == 2) {
+		/* be conservative here: caps intersection is taken */
+		dev.caps = dev.ports[0].caps & dev.ports[1].caps;
+
 		if (bonding_init() < 0)
 			return -1;
 	}
+
+	return 0;
+}
+
+int net_dev_init(void)
+{
+	assert(tpa_cfg.nr_dpdk_port <= MAX_PORT_NR);
+
+	if (dev_port_init() < 0)
+		return -1;
 
 	dev_mac_init();
 

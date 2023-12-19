@@ -252,6 +252,25 @@ out:
 	return &nic_unknow;
 }
 
+static uint32_t translate_caps(uint64_t dpdk_offloads)
+{
+	uint32_t ret = 0;
+
+	if (dpdk_offloads & DEV_TX_OFFLOAD_IPV4_CKSUM)
+		ret |= TX_OFFLOAD_IPV4_CKSUM;
+
+	if (dpdk_offloads & DEV_TX_OFFLOAD_TCP_CKSUM)
+		ret |= TX_OFFLOAD_TCP_CKSUM;
+
+	if (dpdk_offloads & DEV_TX_OFFLOAD_TCP_TSO)
+		ret |= TX_OFFLOAD_TSO;
+
+	if (dpdk_offloads & DEV_TX_OFFLOAD_MULTI_SEGS)
+		ret |= TX_OFFLOAD_MULTI_SEG;
+
+	return ret;
+}
+
 static void dpdk_port_start(struct dpdk_port *port)
 {
 	int port_id = port->port_id;
@@ -318,6 +337,7 @@ static void dpdk_port_start(struct dpdk_port *port)
 	nic_spec = nic_spec_find(port_id);
 	port->nic_spec = nic_spec;
 	port->nr_rx_burst = nic_spec->rx_burst_cap;
+	port->caps = translate_caps(port_conf.txmode.offloads);
 
 	rte_eth_dev_get_name_by_port(port_id, port->device_id);
 	LOG("started port %hu %s <drv_name=%s> %02X:%02X:%02X:%02X:%02X:%02X",

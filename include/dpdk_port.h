@@ -21,6 +21,12 @@
 #define PORT_RXQ_MASK			(PORT_RXQ_SIZE - 1)
 #define MAX_PORT_NR			2
 
+
+#define TX_OFFLOAD_IPV4_CKSUM		(1u << 0)
+#define TX_OFFLOAD_TCP_CKSUM		(1u << 1)
+#define TX_OFFLOAD_TSO			(1u << 2)
+#define TX_OFFLOAD_MULTI_SEG		(1u << 3)
+
 struct port_txq {
 	uint16_t nr_pkt;
 	uint64_t nr_dropped;
@@ -57,6 +63,7 @@ struct dpdk_port {
 	int state;
 
 	uint32_t nr_rx_burst;
+	uint32_t caps;
 
 	struct port_txq *txq;
 	struct port_rxq *rxq;
