@@ -1313,7 +1313,8 @@ static void ut_dpdk_port_init(void)
 	dev.nr_port = 1;
 	dev.ports = dpdk_ports;
 	dev.caps = TX_OFFLOAD_IPV4_CKSUM | TX_OFFLOAD_TCP_CKSUM | \
-		   TX_OFFLOAD_TSO | TX_OFFLOAD_MULTI_SEG;
+		   TX_OFFLOAD_TSO | TX_OFFLOAD_MULTI_SEG | \
+		   EXTERNAL_MEM_REGISTRATION;
 
 	dpdk_port_init(&dpdk_ports[0], 0, 1);
 	dpdk_port_init(&dpdk_ports[1], 1, 1);

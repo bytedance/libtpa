@@ -260,9 +260,13 @@ int tpa_init(int nr_worker)
 int tpa_extmem_register(void *virt_addr, size_t len, uint64_t *phys_addrs,
 			     int nr_page, size_t page_size)
 {
-#ifdef NIC_MLNX
 	uint16_t port;
 	int err;
+
+	if (!(dev.caps & EXTERNAL_MEM_REGISTRATION)) {
+		errno = ENOTSUP;
+		return -1;
+	}
 
 	err = rte_extmem_register(virt_addr, len, (rte_iova_t *)phys_addrs,
 				  nr_page, page_size);
@@ -290,16 +294,19 @@ int tpa_extmem_register(void *virt_addr, size_t len, uint64_t *phys_addrs,
 
 	LOG("registered extmem: va=%p len=%zd page_size=%zd nr_page=%d",
 	    virt_addr, len, page_size, nr_page);
-#endif
 
 	return 0;
 }
 
 int tpa_extmem_unregister(void *virt_addr, size_t len)
 {
-#ifdef NIC_MLNX
 	uint16_t port;
 	int err;
+
+	if (!(dev.caps & EXTERNAL_MEM_REGISTRATION)) {
+		errno = ENOTSUP;
+		return -1;
+	}
 
 	/*
 	 * TODO: we need make sure no inflight packet belong to
@@ -324,7 +331,6 @@ int tpa_extmem_unregister(void *virt_addr, size_t len)
 	}
 
 	LOG("unregistered extmem: va=%p len=%zd", virt_addr, len);
-#endif
 
 	return 0;
 }

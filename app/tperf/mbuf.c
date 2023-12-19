@@ -34,8 +34,9 @@ struct mbuf_pool *mbuf_pool_create(void)
 
 	if (tpa_extmem_register(addr, MBUF_POOL_SIZE, NULL,
 				   MBUF_POOL_SIZE / MBUF_SIZE, MBUF_SIZE) != 0) {
-		fprintf(stderr, "err_tpa_extmem_register: %s", strerror(errno));
-		exit(1);
+		fprintf(stderr, "warn: external mem registration failed: %s\n", strerror(errno));
+		fprintf(stderr, "disabling zero copy write by force\n");
+		ctx.enable_zwrite = 0;
 	}
 
 	return pool;

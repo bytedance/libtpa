@@ -55,6 +55,8 @@ int main(int argc, char *argv[])
 {
 	ut_init(argc, argv);
 
+	dev.caps |= EXTERNAL_MEM_REGISTRATION;
+
 	test_extmem_basic();
 	test_extmem_stress();
 

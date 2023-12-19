@@ -29,6 +29,7 @@
 #define TX_OFFLOAD_PSEUDO_HDR_CKSUM	(1u << 4)
 
 #define FLOW_OFFLOAD			(1u << 16)
+#define EXTERNAL_MEM_REGISTRATION	(1u << 17)
 
 struct port_txq {
 	uint16_t nr_pkt;
