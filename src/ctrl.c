@@ -45,6 +45,13 @@ static int ctrl_thread_create(void *(*func)(void *), void *arg, const char *name
 	return 0;
 }
 
+static void timeout_event_done(int fd)
+{
+	uint64_t expirations;
+
+	read(fd, &expirations, sizeof(expirations));
+}
+
 static int epfd = -1;
 
 #define MAX_EPOLL_EVENT		16
@@ -61,6 +68,9 @@ static void *poll_ctrl_event(void *ignored)
 
 		for (i = 0; i < ret; i++) {
 			ctrl_event = events[i].data.ptr;
+
+			if (ctrl_event->timeout_event)
+				timeout_event_done(ctrl_event->fd);
 
 			if (ctrl_event->cb)
 				ctrl_event->cb(ctrl_event);
