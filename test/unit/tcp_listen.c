@@ -590,7 +590,7 @@ static void test_tcp_listen_offload_fail(void)
 	printf(":: testing %s\n", __func__);
 
 	/* a trick to make flow offload fail */
-	tpa_cfg.nr_dpdk_port = 1; {
+	dev.caps |= FLOW_OFFLOAD; {
 		sid = listen_random_port("127.0.0.1", NULL); {
 			assert(sid < 0);
 			assert(errno == EBUSY);
@@ -608,7 +608,7 @@ static void test_tcp_listen_offload_fail(void)
 	}
 
 	/* make sure we are back to normal */
-	tpa_cfg.nr_dpdk_port = 0; {
+	dev.caps &= ~FLOW_OFFLOAD; {
 		sid = listen_random_port("127.0.0.1", NULL); {
 			assert(sid >= 0);
 			ut_close(&sock_ctrl->socks[sid], CLOSE_TYPE_CLOSE_DIRECTLY);

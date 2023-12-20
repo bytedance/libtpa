@@ -603,12 +603,7 @@ int tsock_offload_create(struct tcp_sock *tsock)
 	struct tpa_ip *ip = &tsock->local_ip;
 	char name[120];
 
-	/*
-	 * XXX: Since we turn to return status of sock offload,
-	 * it will always return failure in test. In order to
-	 * pass test cases, a hack is made here.
-	 */
-	if (unlikely(tpa_cfg.nr_dpdk_port == 0))
+	if (!(dev.caps & FLOW_OFFLOAD))
 		return 0;
 
 	/*
@@ -650,8 +645,7 @@ int port_block_offload_create(struct port_block *block)
 	int nr_ip = 0;
 	int i;
 
-	/* ditto */
-	if (unlikely(tpa_cfg.nr_dpdk_port == 0))
+	if (!(dev.caps & FLOW_OFFLOAD))
 		return 0;
 
 	if (!offload_cfg.enable_port_block_offload)

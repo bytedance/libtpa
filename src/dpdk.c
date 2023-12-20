@@ -268,8 +268,10 @@ static uint32_t translate_caps(uint64_t dpdk_offloads, int nic_type)
 	if (dpdk_offloads & DEV_TX_OFFLOAD_MULTI_SEGS)
 		ret |= TX_OFFLOAD_MULTI_SEG;
 
-	if (nic_type == NIC_TYPE_MLNX)
+	if (nic_type == NIC_TYPE_MLNX) {
 		ret |= TX_OFFLOAD_PSEUDO_HDR_CKSUM;
+		ret |= FLOW_OFFLOAD;
+	}
 
 	return ret;
 }
