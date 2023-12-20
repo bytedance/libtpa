@@ -8,6 +8,7 @@ BUILD_MODE="release"
 DPDK_VERSION="v20.11.3"
 MLNX_ONLY=
 DISABLE_TEST=
+WITH_XDP=
 
 CFG_FILE="build/config.mk"
 
@@ -27,13 +28,21 @@ Supported options are:
   --dpdk [version]               specify dpdk version (default v20.11.3)
   --mlnx-only                    build with mlnx PMD only
   --disable-test                 do not build test
+  --with-xdp                     build with XDP
 EOF
 
 	exit 1
 }
 
+version_lt()
+{
+	test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1";
+}
+
 parse_options()
 {
+	local with_dpdk_version=0
+
 	while [ -n "$1" ]; do
 		case "$1" in
 		"--edit")
@@ -59,6 +68,7 @@ parse_options()
 			shift
 			[ -z "$1" ] && usage "missing argument for --dpdk option"
 			DPDK_VERSION=$1
+			with_dpdk_version=1
 			;;
 
 		"--mlnx-only")
@@ -69,6 +79,10 @@ parse_options()
 			DISABLE_TEST="yes"
 			;;
 
+		"--with-xdp")
+			WITH_XDP="yes"
+			;;
+
 		*)
 			usage
 			exit 1
@@ -76,6 +90,18 @@ parse_options()
 
 		shift
 	done
+
+	[ "$WITH_XDP" = "yes" ] && {
+		[ $with_dpdk_version -eq 0 ] && {
+			DPDK_VERSION="v22.11"
+			return
+		}
+
+		if version_lt $DPDK_VERSION "v22.11" ; then
+			echo "error: xdp needed dpdk version >= v22.11, current setting dpdk version is $DPDK_VERSION"
+			exit
+		fi
+	}
 }
 
 gen_config()
@@ -87,6 +113,7 @@ export BUILD_MODE   = $BUILD_MODE
 export DPDK_VERSION = $DPDK_VERSION
 export MLNX_ONLY    = $MLNX_ONLY
 export DISABLE_TEST = $DISABLE_TEST
+export WITH_XDP     = $WITH_XDP
 EOF
 
 	echo "configs generated are:"

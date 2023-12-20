@@ -52,6 +52,10 @@ CFLAGS := -O2 $(EXTRA_CFLAGS)
 CFLAGS += -Wall -Werror -Wno-packed-not-aligned -Wno-format-truncation
 CFLAGS += -Wno-address-of-packed-member
 
+ifeq ($(WITH_XDP), yes)
+CFLAGS += -DWITH_XDP
+endif
+
 LDFLAGS := $(EXTRA_LDFLAGS)
 LDFLAGS += -lpthread -lnuma
 
