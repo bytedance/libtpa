@@ -48,11 +48,12 @@ struct neigh_impl {
 	int err_stats_code;
 
 	uint64_t rx_pkts;
+	uint64_t tx_pkts;
 };
 
 static struct neigh_impl neigh_impl[NR_NEIGH_IMPL]  = {
-	{ "arp", &arp_ops, -1, ARP_SOLICIT, ERR_ARP_SOLICIT, 0 },
-	{ "ndp", &ndp_ops, -1, NDP_SOLICIT, ERR_NDP_SOLICIT, 0 },
+	{ "arp", &arp_ops, -1, ARP_SOLICIT, ERR_ARP_SOLICIT, 0, 0 },
+	{ "ndp", &ndp_ops, -1, NDP_SOLICIT, ERR_NDP_SOLICIT, 0, 0 },
 };
 
 int get_neigh_cache_len(void)
@@ -441,6 +442,7 @@ static void *neigh_solicit(struct ctrl_event *event)
 		if (TSC_TO_US(now - entry->last_update) > SOLICIT_TIMEOUT * 1000000) {
 			impl = &neigh_impl[!tpa_ip_is_ipv4(&entry->ip)];
 			impl->ops->nd_solicit_by_socket(impl->fd, &entry->ip);
+			impl->tx_pkts++;
 		}
 	}
 
@@ -513,9 +515,13 @@ static int cmd_neigh(struct shell_cmd_info *cmd)
 		shell_append_reply(cmd->reply,
 				   "---\n"
 				   "ARP.rx_pkts: %lu\n"
-				   "NDP.rx_pkts: %lu\n",
+				   "ARP.tx_pkts: %lu\n"
+				   "NDP.rx_pkts: %lu\n"
+				   "NDP.tx_pkts: %lu\n",
 				   neigh_impl[0].rx_pkts,
-				   neigh_impl[1].rx_pkts);
+				   neigh_impl[0].tx_pkts,
+				   neigh_impl[1].rx_pkts,
+				   neigh_impl[1].tx_pkts);
 	}
 
 	return 0;
