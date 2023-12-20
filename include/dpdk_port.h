@@ -26,6 +26,7 @@
 #define TX_OFFLOAD_TCP_CKSUM		(1u << 1)
 #define TX_OFFLOAD_TSO			(1u << 2)
 #define TX_OFFLOAD_MULTI_SEG		(1u << 3)
+#define TX_OFFLOAD_PSEUDO_HDR_CKSUM	(1u << 4)
 
 struct port_txq {
 	uint16_t nr_pkt;
