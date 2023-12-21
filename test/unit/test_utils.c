@@ -209,6 +209,17 @@ void ut_measure_rate(struct tcp_sock *tsock, int interval)
 	last.ts_us = worker->ts_us;
 }
 
+int ut_parse_tcp_packet(struct packet *pkt)
+{
+	int err;
+
+	err = parse_eth_ip(pkt);
+	if (err)
+		return err;
+
+	return parse_tcp_packet(pkt);
+}
+
 struct packet *ut_make_packet(int is_reply, uint16_t client_port, uint32_t flow_id)
 {
 	struct packet *pkt;
@@ -339,7 +350,7 @@ struct packet *ut_make_input_pkt_chain(struct tcp_sock *tsock, int nr_pkt, int *
 		pkts[i] = ut_inject_data_packet(tsock, tsock->rcv_nxt + off, pkt_size[i]);
 		off += pkt_size[i];
 
-		parse_tcp_packet(pkts[i]);
+		ut_parse_tcp_packet(pkts[i]);
 
 		if (i > 0)
 			packet_chain(pkts[0], pkts[i]);
@@ -883,7 +894,7 @@ static uint16_t do_ut_tcp_output(struct packet **pkts, uint16_t count, int skip_
 		orig_len = TCP_SEG(pkt)->len;
 		assert_on_mbuf_chain(&pkt->mbuf);
 
-		assert(parse_tcp_packet(pkt) == 0);
+		assert(ut_parse_tcp_packet(pkt) == 0);
 		assert(seq_le((TCP_SEG(pkt)->seq + TCP_SEG(pkt)->len), pkt->tsock->snd_nxt));
 
 		if (WITH_TSO) {
@@ -900,7 +911,7 @@ static uint16_t do_ut_tcp_output(struct packet **pkts, uint16_t count, int skip_
 
 		 * However, for recv-ed packets, the TCP_SEG(pkt)->len logs the lenght of
 		 * the whole packet (it may have mbuf chains, though this should rarely
-		 * happen). That being said, above `parse_tcp_packet` will set the TCP_SEG(pkt)
+		 * happen). That being said, above `ut_parse_tcp_packet` will set the TCP_SEG(pkt)
 		 * incorrectly, which makes `ack_sent_data` behaviour badly.
 		 *
 		 * To workaround this difference (right, it's a bit nasty), we reset it

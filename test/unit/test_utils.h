@@ -20,6 +20,7 @@
 #include "tpa.h"
 #include "packet.h"
 #include "sock.h"
+#include "eth.h"
 #include "tcp.h"
 #include "neigh.h"
 #include "worker.h"
@@ -117,6 +118,7 @@ void ut_tsock_txq_drain(struct tcp_sock *tsock);
 void ut_tcp_set_hdr(struct packet *pkt, uint32_t seq, uint32_t ack, uint16_t flags, uint16_t win);
 int ut_tcp_set_opt(struct rte_tcp_hdr *tcp, int off, int opt, uint32_t val);
 void ut_ip_set_hdr(struct packet *pkt, uint16_t tcp_opt_len, uint16_t tcp_payload_len);
+int ut_parse_tcp_packet(struct packet *pkt);
 
 struct packet *ut_make_packet(int is_reply, uint16_t client_port, uint32_t flow_id);
 struct packet *make_synack_packet(struct tcp_sock *tsock, int has_ts, int mss, int wscale, int sack);
