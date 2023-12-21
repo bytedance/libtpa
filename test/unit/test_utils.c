@@ -722,7 +722,7 @@ void ut_tcp_input_raw(struct tcp_sock *tsock, struct packet **pkts, uint16_t nr_
 	for (i = 0; i < nr_pkt; i++)
 		rxq->pkts[(rxq->write++) & PORT_RXQ_MASK] = pkts[i];
 
-	while (tcp_input(worker, 0))
+	while (eth_input(worker, 0))
 		;
 }
 

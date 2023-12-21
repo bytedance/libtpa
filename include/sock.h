@@ -476,7 +476,8 @@ void tsock_drop_ooo_mbufs(struct tcp_sock *tsock);
 uint16_t calc_snd_mss(const struct tcp_sock *tsock, int has_ts,
 		      int passive, uint16_t nego_mss);
 
-uint32_t tcp_input(struct tpa_worker *worker, uint16_t port_id);
+int eth_input(struct tpa_worker *worker, int port_id);
+int tcp_input(struct tpa_worker *worker, struct packet **pkts, int nr_pkt);
 int tcp_output(struct tpa_worker *worker);
 void tcp_timeout(struct timer *timer);
 
