@@ -46,7 +46,7 @@ static void test_arp_missing_basic(void)
 	 */
 	uint8_t mac[6] = {2, 1, 1, 1, 1, 1};
 	pkt = make_arp_rsp_pkt(SERVER_IP, mac);
-	ut_arp_input(pkt); {
+	ut_arp_handle_reply(pkt); {
 		assert(neigh_find_ip4(SERVER_IP) != NULL);
 	}
 
@@ -83,7 +83,7 @@ static void test_arp_evict_basic(void)
 
 	mac[0] = 0x2;
 	pkt = make_arp_rsp_pkt(SERVER_IP, mac);
-	ut_arp_input(pkt); {
+	ut_arp_handle_reply(pkt); {
 		entry = neigh_find_ip4(SERVER_IP);
 		assert(neigh_find_ip4(SERVER_IP) != NULL);
 		assert(memcmp(mac, entry->mac.addr_bytes, sizeof(mac)) == 0);
@@ -95,7 +95,7 @@ static void test_arp_evict_basic(void)
 	 */
 	mac[0] = 0x4;
 	pkt = make_arp_rsp_pkt(SERVER_IP, mac);
-	ut_arp_input(pkt); {
+	ut_arp_handle_reply(pkt); {
 		entry = neigh_find_ip4(SERVER_IP);
 		assert(neigh_find_ip4(SERVER_IP) != NULL);
 		assert(memcmp(mac, entry->mac.addr_bytes, sizeof(mac)) == 0);
@@ -115,7 +115,7 @@ static void test_arp_evict_full(void)
 	while (get_neigh_cache_len() != MAX_NEIGH_ENTRY) {
 		ip = rand();
 		pkt = make_arp_rsp_pkt(ip, mac);
-		ut_arp_input(pkt); {
+		ut_arp_handle_reply(pkt); {
 			entry = neigh_find_ip4(ip);
 			assert(entry != NULL);
 			assert(memcmp(mac, entry->mac.addr_bytes, sizeof(mac)) == 0);
@@ -128,7 +128,7 @@ static void test_arp_evict_full(void)
 		ip = rand();
 	} while (neigh_find_ip4(ip));
 	pkt = make_arp_rsp_pkt(ip, mac);
-	ut_arp_input(pkt); {
+	ut_arp_handle_reply(pkt); {
 		entry = neigh_find_ip4(ip);
 		assert(entry != NULL);
 		assert(memcmp(mac, entry->mac.addr_bytes, sizeof(mac)) == 0);
@@ -162,7 +162,7 @@ static void test_gw_arp_missing(void)
 	}
 
 	pkt = make_arp_rsp_pkt(GW_IP, mac);
-	ut_arp_input(pkt); {
+	ut_arp_handle_reply(pkt); {
 		assert(ut_tcp_output(NULL, 0) == 1);
 	}
 

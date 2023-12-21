@@ -105,7 +105,7 @@ static int arp_solicit_by_socket(int fd, struct tpa_ip *ip)
 	return 0;
 }
 
-int arp_input(uint8_t *pkt, size_t len)
+int arp_handle_reply(uint8_t *pkt, size_t len)
 {
 	struct rte_arp_hdr *arp;
 	struct tpa_ip ip;
@@ -113,7 +113,7 @@ int arp_input(uint8_t *pkt, size_t len)
 	arp = (struct rte_arp_hdr *)(pkt + sizeof(struct rte_ether_hdr));
 
 	tpa_ip_set_ipv4(&ip, arp->arp_data.arp_sip);
-	neigh_input(&ip, arp->arp_data.arp_sha.addr_bytes);
+	neigh_handle_reply(&ip, arp->arp_data.arp_sha.addr_bytes);
 
 	return 0;
 }
@@ -218,5 +218,5 @@ const struct neigh_ops arp_ops = {
 	.nd_init = arp_init,
 	.nd_solicit = arp_solicit,
 	.nd_solicit_by_socket = arp_solicit_by_socket,
-	.nd_input = arp_input,
+	.nd_handle_reply = arp_handle_reply,
 };

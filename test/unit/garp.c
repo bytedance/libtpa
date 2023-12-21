@@ -20,7 +20,7 @@ static void test_garp_basic(void)
 	printf("testing %s\n", __func__);
 
 	pkt = make_arp_rsp_pkt(ip, mac);
-	ut_arp_input(pkt); {
+	ut_arp_handle_reply(pkt); {
 		entry = neigh_find_ip4(ip);
 		assert(entry == NULL);
 	}

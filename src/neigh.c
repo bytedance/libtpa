@@ -375,7 +375,7 @@ static void check_neigh_wait_queue(void)
 	}
 }
 
-void neigh_input(struct tpa_ip *ip, uint8_t *mac)
+void neigh_handle_reply(struct tpa_ip *ip, uint8_t *mac)
 {
 	struct neigh_entry *entry;
 
@@ -420,7 +420,7 @@ static void *neigh_recv(struct ctrl_event *event)
 			break;
 		}
 
-		impl->ops->nd_input(packet, ret);
+		impl->ops->nd_handle_reply(packet, ret);
 		impl->rx_pkts += 1;
 	}
 

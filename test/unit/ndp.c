@@ -58,7 +58,7 @@ static void test_ndp_missing_basic(void)
 	 * 2. recv NDP response from kernel, update NDP cache
 	 */
 	pkt = make_ndp_rsp_pkt(&server_ip, (uint8_t []){2, 0, 0, 1, 0, 0});
-	ut_ndp_input(pkt); {
+	ut_ndp_handle_reply(pkt); {
 		assert(neigh_find(&server_ip) != NULL);
 		assert(!rte_is_zero_ether_addr(&entry->mac));
 	}
