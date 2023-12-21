@@ -7,5 +7,6 @@
 #define _TPA_ETH_H_
 
 int eth_input(struct tpa_worker *worker, int port_id);
+int parse_eth_ip(struct packet *pkt);
 
 #endif

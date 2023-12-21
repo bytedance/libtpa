@@ -157,4 +157,7 @@ int worker_init(uint32_t nr_worker);
 struct tpa_worker *tpa_worker_init(void);
 void tpa_worker_run(struct tpa_worker *worker);
 
+void free_err_pkt(struct tpa_worker *worker, struct tcp_sock *tsock,
+		  struct packet *packet, int err);
+
 #endif

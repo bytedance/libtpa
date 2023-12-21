@@ -164,6 +164,40 @@ ssize_t tsock_zreadv(struct tcp_sock *tsock, struct tpa_iovec *iov, int nr_iov)
 	return ctx.size;
 }
 
+static inline int do_parse_tcp_packet(struct packet *pkt)
+{
+	struct rte_tcp_hdr *th;
+	uint16_t tcp_hdr_len;
+
+	th = packet_tcp_hdr(pkt);
+	tcp_hdr_len = (th->data_off >> 4) << 2;
+	pkt->l5_off = pkt->l4_off + tcp_hdr_len;
+	pkt->hdr_len = pkt->l5_off - pkt->l2_off;
+	if (unlikely(pkt->mbuf.pkt_len < pkt->hdr_len))
+		return -ERR_PKT_INVALID_LEN;
+
+	pkt->src_port = th->src_port;
+	pkt->dst_port = th->dst_port;
+
+	TCP_SEG(pkt)->seq   = ntohl(th->sent_seq);
+	TCP_SEG(pkt)->ack   = ntohl(th->recv_ack);
+	TCP_SEG(pkt)->wnd   = ntohs(th->rx_win);
+	TCP_SEG(pkt)->flags = th->tcp_flags;
+	TCP_SEG(pkt)->len   = pkt->ip_payload_len - tcp_hdr_len;
+	TCP_SEG(pkt)->opt_len = tcp_hdr_len - sizeof(struct rte_tcp_hdr);
+
+	pkt->l5_len = TCP_SEG(pkt)->len;
+	pkt->tail = pkt;
+	pkt->nr_read_seg = 1;
+
+	return 0;
+}
+
+int parse_tcp_packet(struct packet *pkt)
+{
+	return do_parse_tcp_packet(pkt);
+}
+
 int parse_tcp_opts(struct tcp_opts *opts, struct packet *pkt)
 {
 	uint8_t *p = (uint8_t *)(packet_tcp_hdr(pkt) + 1);
@@ -1648,20 +1682,6 @@ static inline void queue_input_tsock(struct tpa_worker *worker,
 	*nr_tsock += 1;
 }
 
-static __rte_noinline void free_err_pkt(struct tpa_worker *worker,
-					struct tcp_sock *tsock,
-					struct packet *pkt, int err)
-{
-	if (err) {
-		if (tsock)
-			trace_error(tsock, -err);
-
-		WORKER_TSOCK_STATS_INC(worker, tsock, -err);
-	}
-
-	packet_free(pkt);
-}
-
 static inline void tcp_rcv_process(struct tpa_worker *worker, struct tcp_sock *tsock,
 				   struct packet *pkt)
 {
@@ -1736,7 +1756,7 @@ int tcp_input(struct tpa_worker *worker, struct packet **pkts, int nr_pkt)
 	for (i = 0; i < nr_pkt; i++) {
 		pkt = pkts[i];
 
-		err = parse_tcp_packet(pkt);
+		err = do_parse_tcp_packet(pkt);
 		if (unlikely(err)) {
 			free_err_pkt(worker, NULL, pkt, err);
 			continue;

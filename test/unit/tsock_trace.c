@@ -23,7 +23,7 @@ static void test_tsock_trace_basic(void)
 	for (i = 0; i < 10; i++) {
 		pkt = ut_inject_data_packet(tsock, tsock->rcv_nxt + i, 1);
 
-		parse_tcp_packet(pkt);
+		ut_parse_tcp_packet(pkt);
 		tsock_trace_rcv_pkt(tsock, pkt, worker->ts_us);
 
 		packet_free(pkt);
@@ -68,7 +68,7 @@ static void test_tsock_trace_wrap(void)
 
 		if (i & 1)
 			cycles_update_begin(worker);
-		parse_tcp_packet(pkt);
+		ut_parse_tcp_packet(pkt);
 		tsock_trace_rcv_pkt(tsock, pkt, worker->ts_us);
 
 		packet_free(pkt);

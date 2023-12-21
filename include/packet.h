@@ -48,6 +48,7 @@ struct packet {
 	 */
 	uint16_t l5_off;
 	uint16_t l5_len;
+	uint16_t ip_payload_len;
 	uint8_t hdr_len;
 	int8_t nr_read_seg;
 
@@ -317,82 +318,11 @@ static inline void packet_chain(struct packet *head, struct packet *pkt)
 	head->tail = pkt;
 }
 
+#define IP4_HDR_LEN(ip)		((ip->version_ihl & 0xf) << 2)
+
+int parse_tcp_packet(struct packet *pkt);
 int parse_tcp_opts(struct tcp_opts *opts, struct packet *pkt);
 int verify_csum(struct packet *pkt);
-
-#define IP4_HDR_LEN(ip)		((ip->version_ihl & 0xf) << 2)
-/*
- * XXX: we probably could make some spaces to store bad pkts (for
- *      later analysis (if needed)
- */
-static inline int parse_tcp_packet(struct packet *pkt)
-{
-	struct rte_mbuf *m = &pkt->mbuf;
-	uint64_t csum_flags;
-	struct rte_tcp_hdr *th;
-	uint32_t ip_payload_len;
-	uint16_t tcp_hdr_len;
-	int err;
-
-	debug_assert(pkt->mbuf.data_off <= 128);
-	pkt->l2_off = pkt->mbuf.data_off;
-	pkt->l3_off = pkt->l2_off + sizeof(struct rte_ether_hdr);
-
-	if ((m->packet_type & (RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L4_TCP)) ==
-			      (RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L4_TCP)) {
-		struct rte_ipv4_hdr *ip = packet_ip_hdr(pkt);
-
-		/* TODO: handle ip frags */
-		if (unlikely(ip_is_frag(ip->fragment_offset)))
-			return -PKT_IP_FRAG;
-
-		csum_flags = PKT_RX_IP_CKSUM_GOOD | PKT_RX_L4_CKSUM_GOOD;
-		ip_payload_len = ntohs(ip->total_length) - IP4_HDR_LEN(ip);
-		pkt->l4_off = pkt->l3_off + IP4_HDR_LEN(ip);
-	} else if ((m->packet_type & (RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP)) ==
-				     (RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP)) {
-		struct rte_ipv6_hdr *ip = packet_ip6_hdr(pkt);
-
-		if (unlikely(ip->proto != IPPROTO_TCP))
-			return -ERR_PKT_HAS_IPV6_OPT;
-
-		csum_flags = PKT_RX_L4_CKSUM_GOOD;
-		ip_payload_len = ntohs(ip->payload_len);
-		pkt->l4_off = pkt->l3_off + sizeof(struct rte_ipv6_hdr);
-		pkt->flags |= PKT_FLAG_IS_IPV6;
-	} else {
-		return -ERR_PKT_NOT_TCP;
-	}
-
-	if ((m->ol_flags & csum_flags) != csum_flags) {
-		err = verify_csum(pkt);
-		if (err)
-			return err;
-	}
-
-	th = packet_tcp_hdr(pkt);
-	tcp_hdr_len = (th->data_off >> 4) << 2;
-	pkt->l5_off = pkt->l4_off + tcp_hdr_len;
-	pkt->hdr_len = pkt->l5_off - pkt->l2_off;
-	if (unlikely(m->pkt_len < pkt->hdr_len))
-		return -ERR_PKT_INVALID_LEN;
-
-	pkt->src_port = th->src_port;
-	pkt->dst_port = th->dst_port;
-
-	TCP_SEG(pkt)->seq   = ntohl(th->sent_seq);
-	TCP_SEG(pkt)->ack   = ntohl(th->recv_ack);
-	TCP_SEG(pkt)->wnd   = ntohs(th->rx_win);
-	TCP_SEG(pkt)->flags = th->tcp_flags;
-	TCP_SEG(pkt)->len   = ip_payload_len - tcp_hdr_len;
-	TCP_SEG(pkt)->opt_len = tcp_hdr_len - sizeof(struct rte_tcp_hdr);
-
-	pkt->l5_len = TCP_SEG(pkt)->len;
-	pkt->tail = pkt;
-	pkt->nr_read_seg = 1;
-
-	return 0;
-}
 
 extern struct packet_pool *generic_pkt_pool;
 int packet_pool_create(struct packet_pool *pool, double percent,

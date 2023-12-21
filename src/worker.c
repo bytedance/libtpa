@@ -21,6 +21,7 @@
 #include "shell.h"
 #include "eth.h"
 #include "tcp.h"
+#include "trace/misc.h"
 
 struct tpa_worker *workers;
 __thread struct tpa_worker *tls_worker;
@@ -292,3 +293,16 @@ static const struct shell_cmd worker_cmd = {
 	.name    = "worker",
 	.handler = cmd_worker,
 };
+
+void free_err_pkt(struct tpa_worker *worker, struct tcp_sock *tsock,
+		  struct packet *pkt, int err)
+{
+	if (err) {
+		if (tsock)
+			trace_error(tsock, -err);
+
+		WORKER_TSOCK_STATS_INC(worker, tsock, -err);
+	}
+
+	packet_free(pkt);
+}
