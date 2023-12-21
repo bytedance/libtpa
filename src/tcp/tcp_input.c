@@ -1725,27 +1725,16 @@ static inline void tcp_merge(struct tpa_worker *worker, struct tcp_sock *tsock,
 	tsock->rx_merge_head = pkt;
 }
 
-uint32_t tcp_input(struct tpa_worker *worker, uint16_t port_id)
+int tcp_input(struct tpa_worker *worker, struct packet **pkts, int nr_pkt)
 {
-	struct port_rxq *rxq = dev_port_rxq(port_id, worker->queue);
-	uint32_t nr_rx_burst = dev_port_rx_burst(port_id);
 	struct tcp_sock *tsock;
 	struct packet *pkt;
 	uint32_t nr_tsock = 0;
-	uint32_t nr_pkt;
 	uint32_t i;
 	int err;
 
-	nr_pkt = RTE_MIN(nr_rx_burst, rxq->write - rxq->read);
-	WORKER_STATS_ADD(worker, PKT_RECV, nr_pkt);
-
 	for (i = 0; i < nr_pkt; i++) {
-		pkt = rxq->pkts[(rxq->read++) & PORT_RXQ_MASK];
-
-		if (i + 1 < nr_pkt) {
-			rte_prefetch0(rxq->pkts[rxq->read & PORT_RXQ_MASK]);
-			rte_prefetch0(rte_pktmbuf_mtod(&rxq->pkts[rxq->read & PORT_RXQ_MASK]->mbuf, void *));
-		}
+		pkt = pkts[i];
 
 		err = parse_tcp_packet(pkt);
 		if (unlikely(err)) {

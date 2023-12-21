@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: BSD-3-Clause
- * Copyright (c) 2021, ByteDance Ltd. and/or its Affiliates
+ * Copyright (c) 2021-2023, ByteDance Ltd. and/or its Affiliates
  * Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
  */
 #ifndef _GNU_SOURCE
@@ -19,6 +19,7 @@
 #include "sock.h"
 #include "log.h"
 #include "shell.h"
+#include "eth.h"
 #include "tcp.h"
 
 struct tpa_worker *workers;
@@ -99,14 +100,14 @@ static int flush_neigh_queue(struct tpa_worker *worker)
 	return neigh_flush(worker);
 }
 
-static inline int tcp_input_process(struct tpa_worker *worker)
+static inline int input_process(struct tpa_worker *worker)
 {
 	uint32_t nr_pkt = 0;
 	uint32_t i;
 
 	for (i = 0; i < dev.nr_port; i++) {
 		dev_port_rxq_recv(i, worker->queue);
-		nr_pkt += tcp_input(worker, i);
+		nr_pkt += eth_input(worker, i);
 	}
 
 	return nr_pkt;
@@ -190,7 +191,7 @@ void tpa_worker_run(struct tpa_worker *worker)
 	busy += flush_neigh_queue(worker);
 
 	busy += timer_process(&worker->timer_ctrl, worker->ts_us);
-	busy += tcp_input_process(worker);
+	busy += input_process(worker);
 	busy += tcp_output_process(worker);
 
 	drop_ooo_mbufs(worker);
