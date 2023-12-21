@@ -45,24 +45,42 @@ static inline void mbuf_set_offload(struct packet *pkt, struct eth_ip_hdr *net_h
 	}
 
 	if (!is_ipv6) {
-		/* TODO: disable it when NIC doesn't support offload */
-		m->ol_flags |= PKT_TX_IPV4 | PKT_TX_IP_CKSUM | PKT_TX_TCP_CKSUM;
 		m->l3_len = sizeof(struct rte_ipv4_hdr);
 		m->packet_type = RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L4_TCP;
 
 		net_hdr->ip4.packet_id = htons(packet_id);
 		net_hdr->ip4.total_length = htons(payload_len + sizeof(net_hdr->ip4) + tcp_hdr_len);
 		net_hdr->ip4.hdr_checksum = 0;
-		if (!(dev.caps & TX_OFFLOAD_PSEUDO_HDR_CKSUM))
-			tcp->cksum = rte_ipv4_phdr_cksum(&net_hdr->ip4, m->ol_flags);
+
+		if (likely(dev.caps & TX_OFFLOAD_IPV4_CKSUM))
+			m->ol_flags |= PKT_TX_IPV4 | PKT_TX_IP_CKSUM;
+		else
+			net_hdr->ip4.hdr_checksum = rte_ipv4_cksum(&net_hdr->ip4);
+
+		if (likely(dev.caps & TX_OFFLOAD_TCP_CKSUM)) {
+			m->ol_flags |= PKT_TX_TCP_CKSUM;
+
+			if (unlikely(!(dev.caps & TX_OFFLOAD_PSEUDO_HDR_CKSUM)))
+				tcp->cksum = rte_ipv4_phdr_cksum(&net_hdr->ip4, m->ol_flags);
+		} else {
+			tcp->cksum = 0;
+			tcp->cksum = rte_ipv4_udptcp_cksum(&net_hdr->ip4, tcp);
+		}
 	} else {
-		m->ol_flags |= PKT_TX_IPV6 | PKT_TX_TCP_CKSUM;
 		m->l3_len = sizeof(struct rte_ipv6_hdr);
 		m->packet_type = RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
 
 		net_hdr->ip6.payload_len = htons(payload_len + tcp_hdr_len);
-		if (!(dev.caps & TX_OFFLOAD_PSEUDO_HDR_CKSUM))
-			tcp->cksum = rte_ipv6_phdr_cksum(&net_hdr->ip6, m->ol_flags);
+
+		if (likely(dev.caps & TX_OFFLOAD_TCP_CKSUM)) {
+			m->ol_flags |= PKT_TX_IPV6 | PKT_TX_TCP_CKSUM;
+
+			if (unlikely(!(dev.caps & TX_OFFLOAD_PSEUDO_HDR_CKSUM)))
+				tcp->cksum = rte_ipv6_phdr_cksum(&net_hdr->ip6, m->ol_flags);
+		} else {
+			tcp->cksum = 0;
+			tcp->cksum = rte_ipv6_udptcp_cksum(&net_hdr->ip6, tcp);
+		}
 	}
 
 	pkt->l2_off = pkt->mbuf.data_off;
