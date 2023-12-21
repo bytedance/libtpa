@@ -28,6 +28,8 @@
 #define TX_OFFLOAD_MULTI_SEG		(1u << 3)
 #define TX_OFFLOAD_PSEUDO_HDR_CKSUM	(1u << 4)
 
+#define RX_OFFLOAD_PACKET_TYPE		(1u << 10)
+
 #define FLOW_OFFLOAD			(1u << 16)
 #define EXTERNAL_MEM_REGISTRATION	(1u << 17)
 
