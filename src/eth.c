@@ -11,6 +11,31 @@
 
 #include "worker.h"
 #include "packet.h"
+#include "dev.h"
+
+static __rte_noinline void parse_packet_type(struct packet *pkt)
+{
+	struct rte_mbuf *m = &pkt->mbuf;
+	struct rte_ether_hdr *eth = packet_eth_hdr(pkt);
+	struct rte_ipv4_hdr *ip;
+	struct rte_ipv6_hdr *ip6;
+
+	m->packet_type = 0;
+
+	switch (htons(eth->ether_type)) {
+	case RTE_ETHER_TYPE_IPV4:
+		ip = packet_ip_hdr(pkt);
+		if (ip->next_proto_id == IPPROTO_TCP)
+			m->packet_type |= RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L4_TCP;
+		break;
+
+	case RTE_ETHER_TYPE_IPV6:
+		ip6 = packet_ip6_hdr(pkt);
+		if (ip6->proto == IPPROTO_TCP)
+			m->packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
+		break;
+	}
+}
 
 int parse_eth_ip(struct packet *pkt)
 {
@@ -21,6 +46,9 @@ int parse_eth_ip(struct packet *pkt)
 	debug_assert(pkt->mbuf.data_off <= 128);
 	pkt->l2_off = pkt->mbuf.data_off;
 	pkt->l3_off = pkt->l2_off + sizeof(struct rte_ether_hdr);
+
+	if (unlikely(!(dev.caps & RX_OFFLOAD_PACKET_TYPE)))
+		parse_packet_type(pkt);
 
 	if ((m->packet_type & (RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L4_TCP)) ==
 			      (RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L4_TCP)) {

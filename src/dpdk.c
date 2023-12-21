@@ -270,6 +270,7 @@ static uint32_t translate_caps(uint64_t dpdk_offloads, int nic_type)
 
 	if (nic_type == NIC_TYPE_MLNX) {
 		ret |= TX_OFFLOAD_PSEUDO_HDR_CKSUM;
+		ret |= RX_OFFLOAD_PACKET_TYPE;
 		ret |= FLOW_OFFLOAD;
 		ret |= EXTERNAL_MEM_REGISTRATION;
 	}
