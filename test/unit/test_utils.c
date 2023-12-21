@@ -696,26 +696,26 @@ int ut_timer_process(void)
 	return 0;
 }
 
-void ut_arp_input(struct packet *pkt)
+void ut_arp_handle_reply(struct packet *pkt)
 {
 	cycles_update_begin(worker);
 	ut_timer_process();
 
-	arp_input(rte_pktmbuf_mtod(&pkt->mbuf, uint8_t *), 64);
+	arp_handle_reply(rte_pktmbuf_mtod(&pkt->mbuf, uint8_t *), 64);
 
 	neigh_flush(worker);
 
 	packet_free(pkt);
 }
 
-void ut_ndp_input(struct packet *pkt)
+void ut_ndp_handle_reply(struct packet *pkt)
 {
 	size_t off = sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv6_hdr);
 
 	cycles_update_begin(worker);
 	ut_timer_process();
 
-	ndp_input(rte_pktmbuf_mtod_offset(&pkt->mbuf, uint8_t *, off),
+	ndp_handle_reply(rte_pktmbuf_mtod_offset(&pkt->mbuf, uint8_t *, off),
 		  pkt->mbuf.pkt_len - off);
 
 	neigh_flush(worker);

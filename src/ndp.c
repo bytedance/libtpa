@@ -133,7 +133,7 @@ static int ndp_solicit_by_socket(int fd, struct tpa_ip *ip)
 	return 0;
 }
 
-int ndp_input(uint8_t *packet, size_t len)
+int ndp_handle_reply(uint8_t *packet, size_t len)
 {
 	struct nd_neighbor_advert *na  = (struct nd_neighbor_advert *)packet;
 	struct nd_opt_hdr *opt;
@@ -148,7 +148,7 @@ int ndp_input(uint8_t *packet, size_t len)
 
 		if (opt->nd_opt_type == ND_OPT_TARGET_LINKADDR && opt->nd_opt_len == 1) {
 			tpa_ip_set_ipv6(&ip, (uint8_t *)(&na->nd_na_target));
-			neigh_input(&ip, (uint8_t *)(opt + 1));
+			neigh_handle_reply(&ip, (uint8_t *)(opt + 1));
 		}
 	}
 
@@ -217,5 +217,5 @@ const struct neigh_ops ndp_ops = {
 	.nd_init = ndp_init,
 	.nd_solicit = ndp_solicit,
 	.nd_solicit_by_socket = ndp_solicit_by_socket,
-	.nd_input = ndp_input,
+	.nd_handle_reply = ndp_handle_reply,
 };

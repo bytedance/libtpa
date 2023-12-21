@@ -32,14 +32,14 @@ struct neigh_ops {
 	int (*nd_init)(void);
 	int (*nd_solicit)(struct tpa_ip *ip, struct tpa_worker *worker);
 	int (*nd_solicit_by_socket)(int fd, struct tpa_ip *ip);
-	int (*nd_input)(uint8_t *packet, size_t len);
+	int (*nd_handle_reply)(uint8_t *packet, size_t len);
 };
 
 void neigh_init(void);
 int neigh_wait_enqueue(struct packet *pkt);
 int neigh_flush(struct tpa_worker *worker);
 void neigh_update(struct tpa_ip *ip, uint8_t *mac);
-void neigh_input(struct tpa_ip *ip, uint8_t *mac);
+void neigh_handle_reply(struct tpa_ip *ip, uint8_t *mac);
 struct neigh_entry *neigh_find(struct tpa_ip *ip);
 struct neigh_entry *neigh_lookup(struct tpa_worker *worker, struct tpa_ip *ip);
 int eth_lookup(struct tpa_worker *worker, struct tpa_ip *ip, struct rte_ether_hdr *eth);
@@ -59,12 +59,12 @@ static inline struct neigh_entry *neigh_find_ip4(uint32_t ip4)
 }
 
 /* arp.c */
-int arp_input(uint8_t *packet, size_t len);
+int arp_handle_reply(uint8_t *packet, size_t len);
 extern const struct neigh_ops arp_ops;
 
 
 /* ndp.c */
 extern const struct neigh_ops ndp_ops;
-int ndp_input(uint8_t *packet, size_t len);
+int ndp_handle_reply(uint8_t *packet, size_t len);
 
 #endif
