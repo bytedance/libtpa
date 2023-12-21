@@ -59,6 +59,7 @@ static inline struct neigh_entry *neigh_find_ip4(uint32_t ip4)
 }
 
 /* arp.c */
+int arp_input(struct tpa_worker *worker, struct packet *pkt);
 int arp_handle_reply(uint8_t *packet, size_t len);
 extern const struct neigh_ops arp_ops;
 

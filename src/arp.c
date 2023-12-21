@@ -118,6 +118,86 @@ int arp_handle_reply(uint8_t *pkt, size_t len)
 	return 0;
 }
 
+static int arp_handle_request(struct tpa_worker *worker, struct rte_arp_hdr *request, int port_id)
+{
+	struct rte_arp_hdr *reply;
+	struct rte_ether_hdr *eth;
+	struct packet *pkt;
+	struct tpa_ip ip;
+	int err;
+
+	if (request->arp_data.arp_tip != dev.ip4)
+		return 0;
+
+	pkt = packet_alloc(generic_pkt_pool);
+	if (!pkt)
+		return -ERR_PKT_ALLOC_FAIL;
+
+	/* learn remote arp */
+	tpa_ip_set_ipv4(&ip, request->arp_data.arp_sip);
+	neigh_update(&ip, request->arp_data.arp_sha.addr_bytes);
+
+	eth = (struct rte_ether_hdr *)rte_pktmbuf_append(&pkt->mbuf, sizeof(*eth));
+	if (!eth) {
+		packet_free(pkt);
+		return -ERR_PKT_PREPEND_HDR;
+	}
+	rte_ether_addr_copy(&dev.mac, ETH_SRC_ADDR(eth));
+	rte_ether_addr_copy(&request->arp_data.arp_sha, ETH_DST_ADDR(eth));
+	eth->ether_type = htons(RTE_ETHER_TYPE_ARP);
+
+	reply = (struct rte_arp_hdr *)rte_pktmbuf_append(&pkt->mbuf, sizeof(*reply));
+	if (!reply) {
+		packet_free(pkt);
+		return -ERR_PKT_PREPEND_HDR;
+	}
+	reply->arp_hardware = htons(RTE_ARP_HRD_ETHER);
+	reply->arp_protocol = htons(RTE_ETHER_TYPE_IPV4);
+	reply->arp_hlen = 6;
+	reply->arp_plen = 4;
+	reply->arp_opcode = htons(RTE_ARP_OP_REPLY);
+
+	rte_ether_addr_copy(ETH_SRC_ADDR(eth), &reply->arp_data.arp_sha);
+	rte_ether_addr_copy(ETH_DST_ADDR(eth), &reply->arp_data.arp_tha);
+	reply->arp_data.arp_sip = dev.ip4;
+	reply->arp_data.arp_tip = request->arp_data.arp_sip;
+
+	rte_pktmbuf_append(&pkt->mbuf, RTE_ETHER_MIN_LEN - sizeof(*eth) - sizeof(*reply));
+	err = dev_port_txq_enqueue(port_id, worker->queue, pkt);
+	if (err)
+		packet_free(pkt);
+
+	return err;
+}
+
+int arp_input(struct tpa_worker *worker, struct packet *pkt)
+{
+	struct rte_arp_hdr *arp;
+	int ret = 0;
+
+	arp = (struct rte_arp_hdr *)(packet_data(pkt) + pkt->l3_off);
+	if (arp->arp_hlen != 6 || arp->arp_plen != 4)
+		return -WARN_ARP_INVALID_LEN;
+
+	switch (ntohs(arp->arp_opcode)) {
+	case RTE_ARP_OP_REQUEST:
+		WORKER_STATS_INC(worker, ARP_RECV_REQUEST);
+		ret = arp_handle_request(worker, arp, pkt->port_id);
+		break;
+
+	case RTE_ARP_OP_REPLY:
+		WORKER_STATS_INC(worker, ARP_RECV_REPLY);
+		ret = arp_handle_reply((uint8_t *)arp, sizeof(struct rte_arp_hdr));
+		break;
+
+	default:
+		ret = -WARN_ARP_INVALID_OP;
+		break;
+	}
+
+	return ret;
+}
+
 static char *skip_word(char *p)
 {
 	while (*p && *p == ' ')

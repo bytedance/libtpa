@@ -12,6 +12,7 @@
 #include "worker.h"
 #include "packet.h"
 #include "dev.h"
+#include "neigh.h"
 
 static __rte_noinline void parse_packet_type(struct packet *pkt)
 {
@@ -34,13 +35,17 @@ static __rte_noinline void parse_packet_type(struct packet *pkt)
 		if (ip6->proto == IPPROTO_TCP)
 			m->packet_type |= RTE_PTYPE_L3_IPV6 | RTE_PTYPE_L4_TCP;
 		break;
+
+	case RTE_ETHER_TYPE_ARP:
+		m->packet_type |= RTE_PTYPE_L2_ETHER_ARP;
+		break;
 	}
 }
 
 int parse_eth_ip(struct packet *pkt)
 {
 	struct rte_mbuf *m = &pkt->mbuf;
-	uint64_t csum_flags;
+	uint64_t csum_flags = 0;
 	int err;
 
 	debug_assert(pkt->mbuf.data_off <= 128);
@@ -72,8 +77,6 @@ int parse_eth_ip(struct packet *pkt)
 		pkt->ip_payload_len = ntohs(ip->payload_len);
 		pkt->l4_off = pkt->l3_off + sizeof(struct rte_ipv6_hdr);
 		pkt->flags |= PKT_FLAG_IS_IPV6;
-	} else {
-		return -ERR_PKT_NOT_TCP;
 	}
 
 	if ((m->ol_flags & csum_flags) != csum_flags) {
@@ -83,6 +86,20 @@ int parse_eth_ip(struct packet *pkt)
 	}
 
 	return 0;
+}
+
+/*
+ * Handles non-tcp packets here
+ */
+static __rte_noinline void misc_input(struct tpa_worker *worker, struct packet *pkt)
+{
+	struct rte_mbuf *m = &pkt->mbuf;
+	int err = -ERR_PKT_INVALID_TYPE;
+
+	if (m->packet_type == RTE_PTYPE_L2_ETHER_ARP)
+		err = arp_input(worker, pkt);
+
+	free_err_pkt(worker, NULL, pkt, err);
 }
 
 int eth_input(struct tpa_worker *worker, int port_id)
@@ -113,7 +130,10 @@ int eth_input(struct tpa_worker *worker, int port_id)
 			continue;
 		}
 
-		tcp_pkts[nr_tcp_pkt++] = pkt;
+		if (likely(pkt->mbuf.packet_type & RTE_PTYPE_L4_TCP))
+			tcp_pkts[nr_tcp_pkt++] = pkt;
+		else
+			misc_input(worker, pkt);
 	}
 
 	return tcp_input(worker, tcp_pkts, nr_tcp_pkt);
