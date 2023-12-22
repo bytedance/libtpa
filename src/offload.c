@@ -775,8 +775,8 @@ int offload_init(void)
 	cfg_section_parse("offload");
 
 	if (offload_cfg.enable_sock_offload == 0 && offload_cfg.enable_port_block_offload == 0) {
-		LOG_WARN("none offload enabled; forcing sock offload on");
-		offload_cfg.enable_sock_offload = 1;
+		LOG_WARN("none offload enabled; forcing port block offload on");
+		offload_cfg.enable_port_block_offload = 1;
 	}
 
 	return 0;
