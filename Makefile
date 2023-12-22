@@ -8,7 +8,10 @@ export TPA_VERSION = 1.0-rc0
 
 include buildtools/vars.mk
 
-SUBDIRS = lib src test tools tpad app
+SUBDIRS = lib src tools tpad app
+ifneq ($(DISABLE_TEST),yes)
+SUBDIRS += test
+endif
 
 .PHONY: all install clean distclean $(SUBDIRS) dpdk gtags scan-build so summary static
 
