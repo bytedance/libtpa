@@ -19,7 +19,7 @@
  * checksum when there is a mbuf chain. And this function does
  * support that.
  */
-static uint16_t calc_udptcp_csum(struct packet *pkt, void *ip)
+uint16_t calc_udptcp_csum(struct packet *pkt, void *ip)
 {
 	struct rte_mbuf *m = &pkt->mbuf;
 	int version = (*(uint8_t *)ip) >> 4;

@@ -322,7 +322,7 @@ static inline void packet_chain(struct packet *head, struct packet *pkt)
 
 int parse_tcp_packet(struct packet *pkt);
 int parse_tcp_opts(struct tcp_opts *opts, struct packet *pkt);
-int verify_csum(struct packet *pkt);
+uint16_t calc_udptcp_csum(struct packet *pkt, void *ip);
 
 extern struct packet_pool *generic_pkt_pool;
 int packet_pool_create(struct packet_pool *pool, double percent,

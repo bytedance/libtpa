@@ -42,6 +42,23 @@ static __rte_noinline void parse_packet_type(struct packet *pkt)
 	}
 }
 
+static __rte_noinline int verify_csum(struct packet *pkt)
+{
+	uint16_t csum;
+
+	if (!(pkt->flags & PKT_FLAG_IS_IPV6)) {
+		csum = rte_ipv4_cksum(packet_ip_hdr(pkt));
+		if (csum != 0)
+			return -ERR_BAD_CSUM_IPV4;
+	}
+
+	csum = calc_udptcp_csum(pkt, packet_ip_hdr(pkt));
+	if (csum != 0)
+		return -ERR_BAD_CSUM_TCP;
+
+	return 0;
+}
+
 int parse_eth_ip(struct packet *pkt)
 {
 	struct rte_mbuf *m = &pkt->mbuf;
