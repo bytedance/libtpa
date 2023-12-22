@@ -25,6 +25,20 @@
 #include "tpad.h"
 #include "archive.h"
 
+static void calc_csum(struct eth_ip_hdr *net_hdr, struct rte_tcp_hdr *tcp)
+{
+	if (ntohs(net_hdr->eth.ether_type) == RTE_ETHER_TYPE_IPV4) {
+		net_hdr->ip4.hdr_checksum = 0;
+		net_hdr->ip4.hdr_checksum = rte_ipv4_cksum(&net_hdr->ip4);
+
+		tcp->cksum = 0;
+		tcp->cksum = rte_ipv4_udptcp_cksum(&net_hdr->ip4, tcp);
+	} else {
+		tcp->cksum = 0;
+		tcp->cksum = rte_ipv6_udptcp_cksum(&net_hdr->ip6, tcp);
+	}
+}
+
 static void terminate_one_sock(struct tcp_sock *tsock, int fd, int ifindex)
 {
 	struct eth_ip_hdr *net_hdr;
