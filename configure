@@ -7,6 +7,7 @@
 BUILD_MODE="release"
 DPDK_VERSION="v20.11.3"
 MLNX_ONLY=
+DISABLE_TEST=
 
 usage()
 {
@@ -22,6 +23,7 @@ Supported options are:
   --asan                         asan build
   --dpdk [version]               specify dpdk version (default v20.11.3)
   --mlnx-only                    build with mlnx PMD only
+  --disable-test                 do not build test
 EOF
 
 	exit 1
@@ -51,6 +53,10 @@ parse_options()
 			MLNX_ONLY="yes"
 			;;
 
+		"--disable-test")
+			DISABLE_TEST="yes"
+			;;
+
 		*)
 			usage
 			exit 1
@@ -67,6 +73,7 @@ gen_config()
 export BUILD_MODE   = $BUILD_MODE
 export DPDK_VERSION = $DPDK_VERSION
 export MLNX_ONLY    = $MLNX_ONLY
+export DISABLE_TEST = $DISABLE_TEST
 EOF
 
 	echo "configs generated are:"
