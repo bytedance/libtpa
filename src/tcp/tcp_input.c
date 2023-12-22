@@ -1801,30 +1801,3 @@ int tcp_input(struct tpa_worker *worker, struct packet **pkts, int nr_pkt)
 
 	return nr_pkt;
 }
-
-int verify_csum(struct packet *pkt)
-{
-	uint16_t csum;
-
-	if (pkt->flags & PKT_FLAG_IS_IPV6) {
-		struct rte_ipv6_hdr *ip;
-
-		ip = packet_ip6_hdr(pkt);
-		csum = rte_ipv6_udptcp_cksum(ip, ip + 1);
-		if (csum != 0)
-			return -ERR_BAD_CSUM_TCP;
-	} else {
-		struct rte_ipv4_hdr *ip;
-
-		ip = packet_ip_hdr(pkt);
-		csum = rte_ipv4_cksum(ip);
-		if (csum != 0)
-			return -ERR_BAD_CSUM_IPV4;
-
-		csum = rte_ipv4_udptcp_cksum(ip, ip + 1);
-		if (csum != 0)
-			return -ERR_BAD_CSUM_TCP;
-	}
-
-	return 0;
-}
