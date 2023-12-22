@@ -774,6 +774,13 @@ int offload_init(void)
 	cfg_spec_register(offload_cfg_specs, ARRAY_SIZE(offload_cfg_specs));
 	cfg_section_parse("offload");
 
+	if (dev.nic == NIC_TYPE_IAVF) {
+		if (offload_cfg.enable_flow_mark) {
+			LOG_WARN("iavf doesn't support flow mark; forcing it off");
+			offload_cfg.enable_flow_mark = 0;
+		}
+	}
+
 	if (offload_cfg.enable_sock_offload == 0 && offload_cfg.enable_port_block_offload == 0) {
 		LOG_WARN("none offload enabled; forcing port block offload on");
 		offload_cfg.enable_port_block_offload = 1;
