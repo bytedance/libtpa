@@ -181,16 +181,13 @@ build()
 
 	if [ -f "GNUmakefile" ]; then
 		echo ":: building dpdk $DPDK_VERSION with make ..."
-		time build_with_make > build.log
+		time build_with_make
 	else
 		echo ":: building dpdk $DPDK_VERSION with meson ..."
-		time build_with_meson > build.log
+		time build_with_meson
 	fi
 
-	if [ $? -ne 0 ]; then
-		cat build.log
-		exit 1
-	fi
+	[ $? -ne 0 ] && exit 1
 
 	echo $build_mark > $BUILD_MARK_FILE
 }
