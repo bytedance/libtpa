@@ -96,6 +96,18 @@ get_disable_driver_list()
 	echo $disable_list
 }
 
+get_disable_app_list()
+{
+	disable_list=""
+	for i in app/*; do
+		[ -d "$i" ] || continue
+
+		disable_list+="$(basename $i),"
+	done
+
+	echo $disable_list
+}
+
 build_with_meson()
 {
 	# XXX: Nah..., DPDK with meson doesn't even provide an interface to us ...
@@ -106,7 +118,8 @@ build_with_meson()
 
 	meson build -Dc_args="$EXTRA_CFLAGS" -Dc_link_args="$EXTRA_LDFLAGS" \
 		    -Dprefix=`pwd`/$RTE_TARGET  -Dexamples="" -Dtests=false \
-		    -Ddisable_drivers=$(get_disable_driver_list)
+		    -Ddisable_drivers=$(get_disable_driver_list)            \
+		    -Ddisable_apps=$(get_disable_app_list)
 
 	[ "$(uname -m)" = "aarch64" ] && {
 		sed -e '/RTE_MAX_LCORE/c\#define RTE_MAX_LCORE 256'         \
