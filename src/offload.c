@@ -476,10 +476,70 @@ static struct rte_flow *flow_create(struct offload_ctx *ctx, int port)
 	return flow;
 }
 
+/*
+ * This workaround is needed to make the RSS on 4 tuples work for IAVF.
+ * Without this workaround, it will acutally just calc rss hash based on
+ * IP addr (even though we have set the rss type to RSS_IP | RSS_TCP).
+ */
+static void iavf_offload_workaround_rss(int port, int is_ipv6)
+{
+	/* one for each port and ip version */
+	static struct rte_flow *flows[MAX_PORT_NR * 2];
+	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+	int idx = port * 2 + is_ipv6;
+	struct offload_ctx ctx;
+	struct offload_rule rule;
+	struct tpa_ip local_ip;
+
+	pthread_mutex_lock(&lock);
+	if (flows[idx]) {
+		pthread_mutex_unlock(&lock);
+		return;
+	}
+
+	LOG("iavf: workaround rss flow for %s", is_ipv6 ? "ipv6" : "ipv4");
+
+	if (is_ipv6)
+		local_ip = dev.ip6.ip;
+	else
+		tpa_ip_set_ipv4(&local_ip, dev.ip4);
+
+	memset(&rule, 0, sizeof(rule));
+	OFFLOAD_SET(&rule, dst_ip, local_ip);
+	OFFLOAD_SET(&rule, rss_types, is_ipv6 ? ETH_RSS_NONFRAG_IPV6_TCP : ETH_RSS_NONFRAG_IPV4_TCP);
+	rule.has_rss = 1;
+
+	offload_translate(&rule, &ctx);
+
+	/* yet another workaround */
+	ctx.rss.queue_num = 0;
+
+	ctx.attr.ingress = 1;
+	flows[idx] = flow_create(&ctx, port);
+
+	/*
+	 * As described above, it's not fatal error if it fails
+	 *
+	 * Below trick prevents it from re-creating this flow repeatedly,
+	 * as it will likely fail again.
+	 */
+	if (!flows[idx])
+		flows[idx] = (void *)(uintptr_t)0xff;
+
+	pthread_mutex_unlock(&lock);
+}
+
 static void iavf_offload_workaround(struct offload_ctx *ctx)
 {
+	int port;
+
 	/* append a PORT_REPRESENTOR action, which is needed for iavf */
 	add_port_rep_action(ctx);
+
+	if (ctx->rule->has_rss) {
+		for (port = 0; port < dev.nr_port; port++)
+			iavf_offload_workaround_rss(port, ctx->is_ipv6);
+	}
 }
 
 static struct rte_flow *do_offload_create(struct offload_ctx *ctx, int priority, int port)
