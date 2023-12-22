@@ -73,6 +73,39 @@ static struct nic_spec nic_unknow = {
 	.rx_burst_cap = 32
 };
 
+static void show_port_caps(struct shell_buf *reply, int port_id)
+{
+	struct dpdk_port *port = &dpdk_ports[port_id];
+
+	shell_append_reply(reply, "PORT CAPS: ");
+
+	if (port->caps & TX_OFFLOAD_IPV4_CKSUM)
+		shell_append_reply(reply, "TX_IPV4_CKSUM ");
+
+	if (port->caps & TX_OFFLOAD_TCP_CKSUM)
+		shell_append_reply(reply, "TX_TCP_CKSUM ");
+
+	if (port->caps & TX_OFFLOAD_TSO)
+		shell_append_reply(reply, "TSO ");
+
+	if (port->caps & TX_OFFLOAD_MULTI_SEG)
+		shell_append_reply(reply, "TX_MULTI_SEG ");
+
+	if (port->caps & TX_OFFLOAD_PSEUDO_HDR_CKSUM)
+		shell_append_reply(reply, "TX_PSEUDO_HDR_CKSUM ");
+
+	if (port->caps & RX_OFFLOAD_PACKET_TYPE)
+		shell_append_reply(reply, "RX_PACKET_TYPE ");
+
+	if (port->caps & FLOW_OFFLOAD)
+		shell_append_reply(reply, "FLOW_OFFLOAD ");
+
+	if (port->caps & EXTERNAL_MEM_REGISTRATION)
+		shell_append_reply(reply, "EXTMEM_REG ");
+
+	shell_append_reply(reply, "\n");
+}
+
 static void show_port_stats(struct shell_buf *reply, int port)
 {
 	int nr_queue = RTE_MIN(tpa_cfg.nr_worker, RTE_ETHDEV_QUEUE_STAT_CNTRS);
@@ -159,6 +192,7 @@ static void do_port_stats_get(struct shell_buf *reply, int port_id)
 
 	shell_append_reply(reply, "PORT[%d](%s):\n", port_id,
 			   dev.ports[port_id].state == PORT_LINK_UP ? "UP" : "DOWN");
+	show_port_caps(reply, port_id);
 	show_port_stats(reply, port_id);
 	show_port_xstats(reply, port_id);
 	shell_append_reply(reply, "\n");
