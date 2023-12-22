@@ -421,7 +421,6 @@ static void offload_translate(struct offload_rule *rule, struct offload_ctx *ctx
 	else
 		add_flow_pattern(&ctx->patterns, RTE_FLOW_ITEM_TYPE_IPV4, &ctx->ip_spec, &ctx->ip_mask);
 	add_flow_pattern(&ctx->patterns, RTE_FLOW_ITEM_TYPE_TCP,  &ctx->tcp_spec, &ctx->tcp_mask);
-	add_flow_pattern(&ctx->patterns, RTE_FLOW_ITEM_TYPE_END, NULL, NULL);
 
 	if (rule->has_mark)
 		add_mark_action(ctx, rule->mark);
@@ -438,13 +437,14 @@ static void offload_translate(struct offload_rule *rule, struct offload_ctx *ctx
 
 		add_rss_action(ctx, rss_types);
 	}
-
-	add_flow_action(&ctx->actions, RTE_FLOW_ACTION_TYPE_END, NULL);
 }
 
 static struct rte_flow *flow_create(struct offload_ctx *ctx, int port)
 {
 	struct rte_flow *flow;
+
+	add_flow_pattern(&ctx->patterns, RTE_FLOW_ITEM_TYPE_END, NULL, NULL);
+	add_flow_action(&ctx->actions, RTE_FLOW_ACTION_TYPE_END, NULL);
 
 	dump_flow(ctx, port);
 
