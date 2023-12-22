@@ -14,18 +14,31 @@
 #include "neigh.h"
 #include "tsock_trace.h"
 
-void calc_csum(struct eth_ip_hdr *net_hdr, struct rte_tcp_hdr *tcp)
+/*
+ * The DPDK API rte_ipv4/6_udptcp_cksum do not support calculating
+ * checksum when there is a mbuf chain. And this function does
+ * support that.
+ */
+static uint16_t calc_udptcp_csum(struct packet *pkt, void *ip)
 {
-	if (ntohs(net_hdr->eth.ether_type) == RTE_ETHER_TYPE_IPV4) {
-		net_hdr->ip4.hdr_checksum = 0;
-		net_hdr->ip4.hdr_checksum = rte_ipv4_cksum(&net_hdr->ip4);
+	struct rte_mbuf *m = &pkt->mbuf;
+	int version = (*(uint8_t *)ip) >> 4;
+	uint16_t mbuf_cusm = 0;
+	uint32_t csum;
+	uint16_t len;
 
-		tcp->cksum = 0;
-		tcp->cksum = rte_ipv4_udptcp_cksum(&net_hdr->ip4, tcp);
+	if (version == 4) {
+		len = ntohs(((struct rte_ipv4_hdr *)ip)->total_length);
+		csum = rte_ipv4_phdr_cksum(ip, 0);
 	} else {
-		tcp->cksum = 0;
-		tcp->cksum = rte_ipv6_udptcp_cksum(&net_hdr->ip6, tcp);
+		len = ntohs(((struct rte_ipv6_hdr *)ip)->payload_len);
+		csum = rte_ipv6_phdr_cksum(ip, 0);
 	}
+
+	rte_raw_cksum_mbuf(m, sizeof(struct rte_ether_hdr), len, &mbuf_cusm);
+	csum = __rte_raw_cksum_reduce(csum + mbuf_cusm);
+
+	return (~csum) & 0xffff;
 }
 
 static inline void mbuf_set_offload(struct packet *pkt, struct eth_ip_hdr *net_hdr,
@@ -64,7 +77,7 @@ static inline void mbuf_set_offload(struct packet *pkt, struct eth_ip_hdr *net_h
 				tcp->cksum = rte_ipv4_phdr_cksum(&net_hdr->ip4, m->ol_flags);
 		} else {
 			tcp->cksum = 0;
-			tcp->cksum = rte_ipv4_udptcp_cksum(&net_hdr->ip4, tcp);
+			tcp->cksum = calc_udptcp_csum(pkt, &net_hdr->ip4);
 		}
 	} else {
 		m->l3_len = sizeof(struct rte_ipv6_hdr);
@@ -79,7 +92,7 @@ static inline void mbuf_set_offload(struct packet *pkt, struct eth_ip_hdr *net_h
 				tcp->cksum = rte_ipv6_phdr_cksum(&net_hdr->ip6, m->ol_flags);
 		} else {
 			tcp->cksum = 0;
-			tcp->cksum = rte_ipv6_udptcp_cksum(&net_hdr->ip6, tcp);
+			tcp->cksum = calc_udptcp_csum(pkt, &net_hdr->ip6);
 		}
 	}
 

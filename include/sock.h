@@ -497,8 +497,6 @@ static inline int tsock_trace_is_enable(struct tcp_sock *tsock)
 	return trace_cfg.enable_trace;
 }
 
-void calc_csum(struct eth_ip_hdr *net_hdr, struct rte_tcp_hdr *tcp);
-
 int tsock_try_update_eth_hdr(struct tpa_worker *worker, struct tcp_sock *tsock);
 
 #endif /*_SOCK_H_ */
