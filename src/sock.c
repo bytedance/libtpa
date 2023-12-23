@@ -171,6 +171,7 @@ static struct cfg_spec tcp_cfg_specs[] = {
 		.flags  = CFG_FLAG_HAS_MIN | CFG_FLAG_HAS_MAX,
 		.min    = 1,
 		.max    = UINT32_MAX,
+		.set    = tcp_cfg_set_with_regulation,
 	}, {
 		.name   = "tcp.local_port_range",
 		.type   = CFG_TYPE_STR, /* XXX: a new type? */
@@ -1090,6 +1091,7 @@ static void set_drop_ooo_threshold(void)
 static void sock_regulate_cfgs(void)
 {
 	REGULATE_TCP_CFG(pkt_max_chain);
+	REGULATE_TCP_CFG(write_chunk_size);
 }
 
 static int tcp_cfg_set_with_regulation(struct cfg_spec *spec, const char *val)

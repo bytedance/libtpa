@@ -29,6 +29,7 @@ struct net_dev {
 	int nic;
 	uint32_t caps;
 	uint32_t pkt_max_chain;
+	uint32_t write_chunk_size;
 
 	struct dev_ip ip6;
 	struct dev_ip gw6;

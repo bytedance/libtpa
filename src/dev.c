@@ -266,6 +266,7 @@ static int dev_port_init(void)
 	dev.caps = dev.ports[0].caps;
 	dev.nic  = dev.ports[0].nic_spec->type;
 	dev.pkt_max_chain = dev.ports[0].nic_spec->pkt_max_chain;
+	dev.write_chunk_size = dev.ports[0].nic_spec->write_chunk_size;
 
 	if (dev.nr_port == 2) {
 		/* be conservative here: caps intersection is taken */
