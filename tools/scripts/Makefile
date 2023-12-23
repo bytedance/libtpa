@@ -3,6 +3,7 @@
 # Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
 
 SCRIPTS := run
+SCRIPTS += nic_iavf.sh
 SCRIPTS += nic_mlnx.sh
 SCRIPTS += iavf-bind
 SCRIPTS += hugepage-setup.sh
