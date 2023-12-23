@@ -313,6 +313,7 @@ static uint32_t translate_caps(uint64_t dpdk_offloads, int nic_type)
 		ret |= EXTERNAL_MEM_REGISTRATION;
 	} else if (nic_type == NIC_TYPE_IAVF) {
 		ret |= RX_OFFLOAD_PACKET_TYPE;
+		ret |= FLOW_OFFLOAD;
 	}
 
 	return ret;
