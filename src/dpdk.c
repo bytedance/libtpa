@@ -71,6 +71,9 @@ static struct nic_spec nic_spec_list[] = {
 
 		/* a mbuf chain bigger than 8 might cause a tx hang */
 		.pkt_max_chain = 8,
+
+		/* IAVF just has 14 bits for desc len */
+		.write_chunk_size = (1<<14) - 1,
 	},
 };
 

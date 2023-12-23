@@ -63,6 +63,7 @@ struct nic_spec {
 	int type;
 	uint32_t rx_burst_cap;
 	uint32_t pkt_max_chain;
+	uint32_t write_chunk_size;
 };
 
 struct dpdk_port {
