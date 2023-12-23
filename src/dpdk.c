@@ -213,17 +213,24 @@ static void port_stats_get(struct shell_buf *reply, struct shell_cmd_info *cmd)
 	int i;
 	int port_id;
 
+	if (dev.nic == NIC_TYPE_IAVF)
+		pthread_mutex_lock(&dev.mutex);
+
 	if (cmd->argc == 1 || strcmp(cmd->argv[1], "all") == 0) {
 		shell_append_reply(reply, "All port down:%lu\n", dev.all_port_down);
 
 		for (i = 0; i < rte_eth_dev_count_avail(); ++i)
 			do_port_stats_get(reply, i);
 
-		return;
+		goto out;
 	}
 
 	port_id = atoi(cmd->argv[1]);
 	do_port_stats_get(reply, port_id);
+
+out:
+	if (dev.nic == NIC_TYPE_IAVF)
+		pthread_mutex_unlock(&dev.mutex);
 }
 
 static void usage(struct shell_cmd_info *cmd)
