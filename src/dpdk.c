@@ -313,6 +313,7 @@ static uint32_t translate_caps(uint64_t dpdk_offloads, int nic_type)
 		ret |= EXTERNAL_MEM_REGISTRATION;
 	} else if (nic_type == NIC_TYPE_IAVF) {
 		ret |= RX_OFFLOAD_PACKET_TYPE;
+		ret |= FLOW_OFFLOAD;
 	}
 
 	return ret;
@@ -382,6 +383,12 @@ static void dpdk_port_start(struct dpdk_port *port)
 		rte_panic("failed to start dpdk port %hu", port_id);
 
 	nic_spec = nic_spec_find(port_id);
+
+#if RTE_VERSION < RTE_VERSION_NUM(22,11,0,0)
+	if (nic_spec->type == NIC_TYPE_IAVF)
+		rte_panic("IAVF requires DPDK v22.11 or above");
+#endif
+
 	port->nic_spec = nic_spec;
 	port->nr_rx_burst = nic_spec->rx_burst_cap;
 	port->caps = translate_caps(port_conf.txmode.offloads, nic_spec->type);

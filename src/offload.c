@@ -57,6 +57,7 @@ struct offload_ctx {
 	struct rte_flow_action_mark mark;
 	struct rte_flow_action_rss rss;
 	struct rte_flow_action_queue queue;
+	struct rte_flow_action_ethdev port_rep;
 
 	/* FIXME: assumes no more than 256 workers */
 	uint16_t queue_idx[256];
@@ -279,6 +280,15 @@ static void dump_flow_action(const struct rte_flow_action *action)
 		} else {
 			LOG_DEBUG("  null");
 		}
+	} else if (action->type == RTE_FLOW_ACTION_TYPE_PORT_REPRESENTOR) {
+		const struct rte_flow_action_ethdev *port = action->conf;
+
+		LOG_DEBUG("rte flow port_representor action:");
+		if (port) {
+			LOG_DEBUG("  port=%d", port->port_id);
+		} else {
+			LOG_DEBUG("  null");
+		}
 	} else if (action->type == RTE_FLOW_ACTION_TYPE_END) {
 		;
 	} else {
@@ -363,6 +373,12 @@ static void add_queue_action(struct offload_ctx *ctx, uint16_t queue)
 	ctx->queue.index = queue;
 
 	add_flow_action(&ctx->actions, RTE_FLOW_ACTION_TYPE_QUEUE, &ctx->queue);
+}
+
+static void add_port_rep_action(struct offload_ctx *ctx)
+{
+	ctx->port_rep.port_id = 0;
+	add_flow_action(&ctx->actions, RTE_FLOW_ACTION_TYPE_PORT_REPRESENTOR, &ctx->port_rep);
 }
 
 static void offload_translate(struct offload_rule *rule, struct offload_ctx *ctx)
@@ -460,6 +476,12 @@ static struct rte_flow *flow_create(struct offload_ctx *ctx, int port)
 	return flow;
 }
 
+static void iavf_offload_workaround(struct offload_ctx *ctx)
+{
+	/* append a PORT_REPRESENTOR action, which is needed for iavf */
+	add_port_rep_action(ctx);
+}
+
 static struct rte_flow *do_offload_create(struct offload_ctx *ctx, int priority, int port)
 {
 	ctx->attr.ingress = 1;
@@ -534,6 +556,9 @@ static int offload_create(struct offload_list *list, struct offload_rule *rule, 
 	LOG("offloading %s", list->name);
 
 	offload_translate(rule, &ctx);
+
+	if (dev.nic == NIC_TYPE_IAVF)
+		iavf_offload_workaround(&ctx);
 
 	for (i = 0; i < dev.nr_port; i++) {
 		offload = malloc(sizeof(struct offload));

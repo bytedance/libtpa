@@ -91,6 +91,15 @@ static inline void dpdk_enable_jumbo_frame(struct rte_eth_conf *conf, uint32_t m
 	conf->rxmode.max_rx_pkt_len = max_rx_pkt_len;
 }
 
+/*
+ * just to make the build happy
+ */
+#define RTE_FLOW_ACTION_TYPE_PORT_REPRESENTOR		-1
+
+struct rte_flow_action_ethdev {
+	uint16_t port_id;
+};
+
 #endif
 
 #endif /* _DPDK_COMPAT_H_ */
