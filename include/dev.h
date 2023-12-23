@@ -26,6 +26,7 @@ struct net_dev {
 	uint32_t mask;
 	uint32_t gw4;
 
+	int nic;
 	uint32_t caps;
 
 	struct dev_ip ip6;

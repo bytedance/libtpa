@@ -264,10 +264,16 @@ static int dev_port_init(void)
 	}
 
 	dev.caps = dev.ports[0].caps;
+	dev.nic  = dev.ports[0].nic_spec->type;
 
 	if (dev.nr_port == 2) {
 		/* be conservative here: caps intersection is taken */
 		dev.caps = dev.ports[0].caps & dev.ports[1].caps;
+
+		if (dev.ports[0].nic_spec != dev.ports[1].nic_spec) {
+			LOG_ERR("bonding requires slaves to be the same nic type");
+			return -1;
+		}
 
 		if (bonding_init() < 0)
 			return -1;
