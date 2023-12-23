@@ -11,13 +11,13 @@ nic_dev_get_pci()
 
 nic_dev_get_dpdk_args()
 {
-	args=""
+	args="pci = "
 
 	for eth in $(get_eth_list $TPA_ETH_DEV); do
 		args+="$(nic_dev_get_pci $eth) "
 	done
 
-	echo $args
+	echo "$args"
 }
 
 nic_dev_init()

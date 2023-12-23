@@ -11,7 +11,7 @@ export PATH=$PATH:/sbin
 [ -z "$TPA_PATH" ] && export TPA_PATH=/usr/share/tpa
 export PATH=$TPA_PATH:$PATH
 
-support_driver="mlx5"
+supported_driver="mlx5|ice"
 
 eth_has_ip()
 {
@@ -20,7 +20,7 @@ eth_has_ip()
 
 eth_is_valid()
 {
-	ethtool -i $1 2>/dev/null | grep -qE "$support_driver"
+	ethtool -i $1 2>/dev/null | grep -qE "$supported_driver"
 }
 
 eth_is_bond()
@@ -81,6 +81,8 @@ eth_dev_init()
 	driver=$(get_eth_driver $TPA_ETH_DEV)
 	if [[ $driver =~ "mlx5" ]]; then
 		source nic_mlnx.sh
+	elif [[ $driver =~ "ice" ]]; then
+		source nic_iavf.sh
 	else
 		echo "error: unsupport driver: $driver"
 		exit 1
@@ -162,7 +164,7 @@ tpa_cfg()
 	cfg_bonding
 	TPA_NET_CFG+="}"
 
-	TPA_DPDK_CFG="dpdk { pci=$(nic_dev_get_dpdk_args); }"
+	TPA_DPDK_CFG="dpdk { $(nic_dev_get_dpdk_args); }"
 
 	export TPA_CFG="$TPA_NET_CFG $TPA_DPDK_CFG $TPA_CFG"
 
