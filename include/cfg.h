@@ -89,6 +89,8 @@ int cfg_section_parse(const char *section);
 int cfg_spec_register(struct cfg_spec *specs, int nr_spec);
 void cfg_dump_unknown_opts(void);
 
+int cfg_spec_set_num(struct cfg_spec *spec, const char *val);
+
 extern struct tpa_cfg tpa_cfg;
 
 #endif

@@ -68,6 +68,9 @@ static struct nic_spec nic_spec_list[] = {
 		.name = "net_iavf",
 		.type = NIC_TYPE_IAVF,
 		.rx_burst_cap = 32,
+
+		/* a mbuf chain bigger than 8 might cause a tx hang */
+		.pkt_max_chain = 8,
 	},
 };
 

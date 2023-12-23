@@ -49,6 +49,7 @@ struct tcp_cfg tcp_cfg = {
 	.write_chunk_size	= WRITE_CHUNK_SIZE,
 };
 
+static int tcp_cfg_set_with_regulation(struct cfg_spec *spec, const char *val);
 static struct cfg_spec tcp_cfg_specs[] = {
 	{
 		.name	= "tcp.nr_max_sock",
@@ -63,6 +64,7 @@ static struct cfg_spec tcp_cfg_specs[] = {
 		.flags  = CFG_FLAG_HAS_MAX | CFG_FLAG_HAS_MIN,
 		.max    = PKT_MAX_CHAIN,
 		.min    = 2,
+		.set    = tcp_cfg_set_with_regulation,
 	}, {
 		.name	= "tcp.usr_snd_mss",
 		.type   = CFG_TYPE_UINT,
@@ -1067,6 +1069,39 @@ static void set_drop_ooo_threshold(void)
 				     8 / 10;
 }
 
+/*
+ * FIXME: regulate some cfgs based on the DPDK port capabilities.
+ *
+ * It's needed because of current the init order. So far we have:
+ * - sock init early (which initializes the tcp cfg)
+ * - dpdk init (which initializes the dpdk port capabilities)
+ * - sock init (then regulates the some tcp cfgs)
+ *
+ */
+
+#define REGULATE_TCP_CFG(option)		do {			\
+	if (dev.option && tcp_cfg.option > dev.option) {		\
+		LOG("%s (%u) is beyond the dev cap (%u); clamp it",	\
+		    #option, tcp_cfg.option, dev.option);		\
+		tcp_cfg.option = dev.option;				\
+	}								\
+} while (0)
+
+static void sock_regulate_cfgs(void)
+{
+	REGULATE_TCP_CFG(pkt_max_chain);
+}
+
+static int tcp_cfg_set_with_regulation(struct cfg_spec *spec, const char *val)
+{
+	if (cfg_spec_set_num(spec, val) < 0)
+		return -1;
+
+	sock_regulate_cfgs();
+
+	return 0;
+}
+
 int sock_init(void)
 {
 	int i;
@@ -1087,6 +1122,8 @@ int sock_init(void)
 	tsock_trace_ctrl_init();
 
 	set_drop_ooo_threshold();
+
+	sock_regulate_cfgs();
 
 	return 0;
 }

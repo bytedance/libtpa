@@ -491,7 +491,7 @@ static long int cfg_parse_num(const char *val, int type)
 	return n;
 }
 
-static int cfg_spec_set_num(struct cfg_spec *spec, const char *val)
+int cfg_spec_set_num(struct cfg_spec *spec, const char *val)
 {
 	long int num;
 
