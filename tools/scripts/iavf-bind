@@ -1,0 +1,113 @@
+#!/bin/bash
+#
+# Copyright (c) 2022-2023, ByteDance Inc. All rights reserved.
+# Author: Tao Liu <liutao.xyz@bytedance.com>
+# Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+[ $# -ne 2 ] && echo "usage: $0 eth nr_vf" && exit 1
+ETH=$1
+NR_VF=$2
+
+modprobe_vfio()
+{
+	modprobe vfio
+
+	# enable noiommu mode if not enabled yet
+	cat /proc/cmdline | grep -q "iommu=pt" || {
+		noiommu="/sys/module/vfio/parameters/enable_unsafe_noiommu_mode"
+		if [ ! -f $noiommu ]; then
+			echo "error: kernel config noiommu is not enabled"
+			return 1
+		fi
+
+		[ "$(cat $noiommu)" != "Y" ] && echo "Y" > $noiommu
+	}
+
+	modprobe vfio-pci
+}
+
+alloc_vf()
+{
+	sriov_path="/sys/class/net/$ETH/device/sriov_numvfs"
+	[ -f "$sriov_path" ] || {
+		echo "error: eth $ETH does not support SR-IOV"
+		exit 1
+	}
+
+	nr_vf_allocated=$(cat $sriov_path)
+	[ "$nr_vf_allocated" -ge "$NR_VF" ] && {
+		echo "eth $ETH has enough vf allocated ($nr_vf_allocated); skip vf allocation"
+		return
+	}
+
+	[ "$nr_vf_allocated" -ne 0 ] && {
+		echo "error: eth $ETH has already allocated $nr_vf_allocated vf"
+		echo "you need reset it first by bellow command:"
+		echo "    echo 0 > $sriov_path"
+		exit 1
+	}
+
+	echo $NR_VF > $sriov_path
+	[ "$(cat $sriov_path)" -ne "$NR_VF" ] && {
+		echo "errro: failed to allocate $NR_VF vf for eth $ETH"
+		exit 1
+	}
+}
+
+bind_one_vf()
+{
+	local pci=$1
+
+	driver=$(basename $(readlink /sys/bus/pci/devices/$pci/driver) 2>/dev/null)
+	[ "$driver" = "vfio-pci" ] && {
+		echo "$ETH:$pci is already bound to vfio-pci; skip"
+		return
+	}
+
+	echo "binding $ETH:$pci ($driver) to vfio ..."
+	vendor=$(cat /sys/bus/pci/devices/$pci/vendor)
+	device=$(cat /sys/bus/pci/devices/$pci/device)
+	[ -n "$driver" ] && echo $pci > /sys/bus/pci/drivers/$driver/unbind
+	echo "$vendor $device" > /sys/bus/pci/drivers/vfio-pci/new_id
+}
+
+bind_vf()
+{
+	for vf in /sys/class/net/$ETH/device/virtfn*; do
+		pci=$(readlink $vf | awk -F'/' '{print $2}')
+		bind_one_vf $pci
+	done
+}
+
+turn_on_trust()
+{
+	local vf=$1
+
+	ip link show $ETH | grep -q "vf $vf .*trust on" && return
+
+	echo "$ETH:$vf: turning trust on"
+	ip link set $ETH vf $vf trust on
+}
+
+turn_off_spoofchk()
+{
+	local vf=$1
+
+	ip link show $ETH | grep -q "vf $vf .*spoof checking off" && return
+
+	echo "$ETH:$vf: turning spoof checking off"
+	ip link set $ETH vf $vf spoofchk off
+}
+
+cfg_vf()
+{
+	for ((i=0; i<$NR_VF; i++)); do
+		turn_on_trust $i
+		turn_off_spoofchk $i
+	done
+}
+
+modprobe_vfio
+alloc_vf
+bind_vf
+cfg_vf
