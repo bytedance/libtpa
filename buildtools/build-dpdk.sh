@@ -129,7 +129,9 @@ build_with_meson()
 		opts="-j 2"
 	}
 	ninja -C build $opts
-	ninja -C build install
+
+	echo ":: installing dpdk ..."
+	ninja -C build install > install.log
 }
 
 skip_dpdk_build()
