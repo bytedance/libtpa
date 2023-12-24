@@ -81,6 +81,7 @@ Or below if a complain about low meson version is met afterwards:
 
 With all setup, you can build libtpa simply by::
 
+    ./configure
     make
     make install
 
@@ -89,7 +90,8 @@ With all setup, you can build libtpa simply by::
     necessary, say when it's not built yet or when the build mode is
     changed. If you want to rebuild DPDK, you could::
 
-        make distclean
+        make dpdkclean
+	./configure
         make
 
     Moreover, you don't even need to clone DPDK first. Libtpa will do it
