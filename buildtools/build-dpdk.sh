@@ -117,7 +117,8 @@ build_with_meson()
 	fi
 
 	meson build -Dc_args="$EXTRA_CFLAGS" -Dc_link_args="$EXTRA_LDFLAGS" \
-		    -Dprefix=`pwd`/$RTE_TARGET  -Dexamples="" -Dtests=false \
+		    -Dprefix=`pwd`/$RTE_TARGET -Dlibdir=lib                 \
+		    -Dexamples="" -Dtests=false                             \
 		    -Ddisable_drivers=$(get_disable_driver_list)            \
 		    -Ddisable_apps=$(get_disable_app_list)
 
