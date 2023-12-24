@@ -66,3 +66,4 @@ export CFLAGS
 export LDFLAGS
 
 export DPDK_LD_PATH = $(RTE_SDK)/$(RTE_TARGET)/lib
+export TPA_LIBS = $(OBJ_ROOT)/src/tpa-core.a $(OBJ_ROOT)/lib/tpa-lib.a

@@ -13,7 +13,7 @@ ifneq ($(DISABLE_TEST),yes)
 SUBDIRS += test
 endif
 
-.PHONY: all install clean distclean $(SUBDIRS) dpdk gtags scan-build so summary static
+.PHONY: all install clean distclean $(SUBDIRS) dpdk gtags scan-build so summary
 
 all: summary $(SUBDIRS)
 
@@ -22,40 +22,36 @@ $(SUBDIRS): $(CONFIG_MK)
 
 test: lib src
 test lib src: dpdk
-tpad tools app: static
+tpad tools app: $(LIBTPA_A)
 
 dpdk:
 	$(Q)bash ./buildtools/build-dpdk.sh
 
-$(LIBTPA_SO): src lib
+$(LIBTPA_SO): $(TPA_LIBS)
 	$(Q)echo "  LD $(notdir $@)"
-	$(Q)$(CC) -shared -o $@ -L$(DPDK_LD_PATH)			\
-	     -Wl,--whole-archive					\
-	     $(OBJ_ROOT)/src/tpa-core.a				\
-	     $(OBJ_ROOT)/lib/tpa-lib.a				\
-	     $(DPDK_LD_PATH)/librte_*.a					\
-	     -Wl,--no-whole-archive					\
+	$(Q)$(CC) -shared -o $@					\
+	     -Wl,--whole-archive $^ $(DPDK_LD_PATH)/librte_*.a -Wl,--no-whole-archive \
 	     $(LDFLAGS)
 	$(Q)bash ./buildtools/gen-pkg-config-file
 
 so: $(LIBTPA_SO)
 
-static: src lib
+$(TPA_LIBS): src lib
+
+$(LIBTPA_A): $(TPA_LIBS)
 	$(Q)echo "  AR libtpa.a"
-	$(Q)echo create $(LIBTPA_A)                >  /tmp/tpa.mri
-	$(Q)echo addlib $(OBJ_ROOT)/src/tpa-core.a >> /tmp/tpa.mri
-	$(Q)echo addlib $(OBJ_ROOT)/lib/tpa-lib.a  >> /tmp/tpa.mri
-	$(Q)for i in $(DPDK_LD_PATH)/librte_*.a; do \
+	$(Q)echo create $(LIBTPA_A)		   >  /tmp/tpa.mri
+	$(Q)for i in $^ $(DPDK_LD_PATH)/librte_*.a; do \
 		echo addlib $$i			   >> /tmp/tpa.mri; \
 	done
-	$(Q)echo save 				   >> /tmp/tpa.mri
+	$(Q)echo save				   >> /tmp/tpa.mri
 	$(Q)ar -M < /tmp/tpa.mri
 	$(Q)bash ./buildtools/gen-pkg-config-file
 
-summary: $(SUBDIRS) static
+summary: $(SUBDIRS) $(LIBTPA_A)
 	$(Q)echo ":: built $(shell buildtools/get-ver.sh): mode=$(BUILD_MODE) dpdk=$(DPDK_VERSION)"
 
-install: $(SUBDIRS) static
+install: $(SUBDIRS) $(LIBTPA_A)
 	$(Q)echo "  INSTALL -> $(INSTALL_ROOT)"
 	$(Q)mkdir -p $(INSTALL_ROOT)
 	$(Q)echo $(shell buildtools/get-ver.sh) > $(INSTALL_ROOT)/version
