@@ -55,6 +55,23 @@ get_eth_driver()
 	done
 }
 
+eth_dev_probe()
+{
+	local eth=$1
+
+	eth_is_bond $eth && {
+		local nr_valid_slave=$(get_eth_list $eth | wc -w)
+		[ "$nr_valid_slave" -lt 1 ] && return 1
+		[ "$nr_valid_slave" -gt 2 ] && return 1
+
+		eth_has_ip $eth
+		return
+	}
+
+	eth_is_valid $eth || return 1
+	eth_has_ip $eth
+}
+
 eth_dev_detect()
 {
 	[ -n "$TPA_ETH_DEV" ] && return
@@ -62,11 +79,8 @@ eth_dev_detect()
 	# XXX: here we just take the first valid nic eth we meet
 	for i in /sys/class/net/*; do
 		eth=$(basename $i)
-		eth_is_valid $eth || continue
-		eth_has_ip $eth || continue
 
-		TPA_ETH_DEV="$eth"
-		return
+		eth_dev_probe $eth && TPA_ETH_DEV="$eth" && return
 	done
 
 	echo "error: no valid eth device found"
