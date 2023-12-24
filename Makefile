@@ -84,6 +84,9 @@ clean:
 	$(Q)echo "  CLEAN"
 	$(Q)rm -rf $(BIN_ROOT) $(OBJ_ROOT) $(LIBTPA_A) $(LIBTPA_SO)
 
+dpdkclean:
+	rm -rf $(BUILD_ROOT)/dpdk
+
 distclean:
 	$(Q)echo "  DISTCLEAN"
 	$(Q)rm -rf $(BUILD_ROOT)
