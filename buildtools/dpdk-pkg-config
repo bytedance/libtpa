@@ -28,7 +28,7 @@ case "$1" in
 		# we are doing static link with dpdk; here we just
 		# report the system ldflags.
 		pkg-config --libs --static libdpdk |  tr ' ' '\n' | grep -v rte | \
-			grep '^\-l[^ ]*' | sort | uniq | tr '\n' ' '
+			grep '^-l[^ ]*' | sort | uniq | tr '\n' ' '
 	else
 		# nah, it's not easy to get below ldflags from legacy
 		# build system.
