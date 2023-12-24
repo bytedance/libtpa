@@ -7,7 +7,7 @@
 [ -z "$RTE_SDK" ] && echo "error: missing RTE_SDK env var" && exit 1
 [ -z "$SRC_ROOT" ] && echo "error: you should not execute this script directly" && exit 1
 
-export PKG_CONFIG_PATH="$RTE_SDK/build/meson-private"
+export PKG_CONFIG_PATH="$RTE_SDK/$RTE_TARGET/lib/pkgconfig"
 
 gen_cflags_from_makefile()
 {
