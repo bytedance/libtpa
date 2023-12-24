@@ -48,8 +48,10 @@ static int ctrl_thread_create(void *(*func)(void *), void *arg, const char *name
 static void timeout_event_done(int fd)
 {
 	uint64_t expirations;
+	int ret;
 
-	read(fd, &expirations, sizeof(expirations));
+	ret = read(fd, &expirations, sizeof(expirations));
+	(void)ret;
 }
 
 static int epfd = -1;
