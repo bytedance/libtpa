@@ -42,6 +42,7 @@ Build Libtpa
 
 With all setup, you can build libtpa simply by::
 
+    ./configure
     make
     make install
 
