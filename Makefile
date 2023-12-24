@@ -20,10 +20,9 @@ all: summary $(SUBDIRS)
 $(SUBDIRS): $(CONFIG_MK)
 	$(MAKE) -C $@
 
-test tools app: src lib
-lib src: dpdk
-tpad: tools lib
-tools app: static
+test: lib src
+test lib src: dpdk
+tpad tools app: static
 
 dpdk:
 	$(Q)bash ./buildtools/build-dpdk.sh
