@@ -9,6 +9,8 @@ DPDK_VERSION="v20.11.3"
 MLNX_ONLY=
 DISABLE_TEST=
 
+CFG_FILE="build/config.mk"
+
 usage()
 {
 	error="$1"
@@ -18,6 +20,7 @@ usage()
 usage: ./configure [options]
 
 Supported options are:
+  --edit                         edit the config file manually
   --debug                        debug build
   --release                      release build (default)
   --asan                         asan build
@@ -33,6 +36,15 @@ parse_options()
 {
 	while [ -n "$1" ]; do
 		case "$1" in
+		"--edit")
+			if [ -f "$CFG_FILE" ]; then
+				${EDITOR:-vim} $CFG_FILE
+			else
+				echo "error: no config file generated yet"
+			fi
+			exit
+			;;
+
 		"--debug")
 			BUILD_MODE="debug"
 			;;
@@ -68,8 +80,9 @@ parse_options()
 
 gen_config()
 {
-	mkdir -p build
-	cat > build/config.mk << EOF
+	mkdir -p $(dirname $CFG_FILE)
+
+	cat > $CFG_FILE << EOF
 export BUILD_MODE   = $BUILD_MODE
 export DPDK_VERSION = $DPDK_VERSION
 export MLNX_ONLY    = $MLNX_ONLY
