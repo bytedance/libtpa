@@ -6,7 +6,6 @@ CFLAGS += -Wno-format-truncation
 CFLAGS += -I$(SRC_ROOT)/include -I$(RTE_SDK)/$(RTE_TARGET)/include
 CFLAGS += $(shell $(SRC_ROOT)/buildtools/dpdk-pkg-config --cflags)
 
-LDFLAGS += $(LIBTPA_A)
 LDFLAGS += $(shell $(SRC_ROOT)/buildtools/dpdk-pkg-config --ldflags)
 
 SRCS := tpad.c
@@ -21,7 +20,7 @@ BIN = $(BIN_DIR)/tpad
 
 all: $(BIN)
 
-$(BIN): $(OBJS) | OUT_DIRS
+$(BIN): $(OBJS) $(LIBTPA_A) | OUT_DIRS
 	$(Q)echo "  LD $(notdir $@)"
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS)
 

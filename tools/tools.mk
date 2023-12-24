@@ -5,7 +5,6 @@
 CFLAGS += -I$(RTE_SDK)/$(RTE_TARGET)/include -I$(SRC_ROOT)/include
 CFLAGS += $(shell $(SRC_ROOT)/buildtools/dpdk-pkg-config --cflags)
 
-LDFLAGS += $(LIBTPA_A) -lm
 LDFLAGS += $(shell $(SRC_ROOT)/buildtools/dpdk-pkg-config --ldflags)
 
 OBJ_DIR = $(OBJ_ROOT)/tools
@@ -18,7 +17,7 @@ BIN = $(BIN_DIR)/$(APP)
 
 all: $(BIN) scripts
 
-$(BIN): $(OBJS) | OUT_DIRS
+$(BIN): $(OBJS) $(LIBTPA_A) | OUT_DIRS
 	$(Q)echo "  LD $(notdir $@)"
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS)
 ifeq ($(BUILD_MODE),release)
