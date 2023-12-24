@@ -83,7 +83,7 @@ $(SRC_ROOT)/include/version.h:
 $(SRC_ROOT)/include/build-info.h: $(SRCS)
 	$(Q)echo "  GEN build-info.h"
 	$(Q)echo "#define BUILD_MODE	\"$(BUILD_MODE)\"" > $(SRC_ROOT)/include/build-info.h
-	$(Q)echo "#define BUILD_COMPILER	\"$(shell $(CC) -v 2>&1 | grep -w version)\"" >> $(SRC_ROOT)/include/build-info.h
+	$(Q)echo "#define BUILD_COMPILER \"$(shell $(CC) -v 2>&1 | grep 'version [0-9]')\"" >> $(SRC_ROOT)/include/build-info.h
 	$(Q)echo "#define BUILD_BOX	\"$(shell hostname)\"" >> $(SRC_ROOT)/include/build-info.h
 	$(Q)echo "#define BUILD_DATE	\"$(shell date)\"" >> $(SRC_ROOT)/include/build-info.h
 
