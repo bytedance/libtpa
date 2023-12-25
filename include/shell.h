@@ -38,7 +38,7 @@ struct shell_cmd {
 			        __VA_ARGS__)
 
 int shell_init(void);
+int shell_start(void);
 int shell_register_cmd(const struct shell_cmd *cmd);
-void shell_exec_postinit_cmd(void);
 
 #endif

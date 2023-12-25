@@ -252,7 +252,11 @@ int tpa_init(int nr_worker)
 	/* XXX: it's ugly */
 	cfg_dump_unknown_opts();
 
-	shell_exec_postinit_cmd();
+	/*
+	 * show be invoked at the end of init; as it may execute
+	 * shell postinit cmds if given.
+	 */
+	shell_start();
 
 	return 0;
 }
