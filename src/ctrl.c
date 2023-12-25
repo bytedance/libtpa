@@ -113,8 +113,6 @@ static int ctrl_event_register(struct ctrl_event *ctrl_event, const char *name)
 		return -1;
 	}
 
-	LOG_DEBUG("ctrl register event for %s done", name);
-
 	return 0;
 }
 
