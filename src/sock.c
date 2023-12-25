@@ -440,7 +440,7 @@ static void reclaim_txq(struct tcp_sock *tsock)
 			break;
 
 		debug_assert(i <= tsock->txq.size);
-		tx_desc_done(desc, tsock->worker->tx_desc_pool);
+		tx_desc_done(desc, tsock->worker);
 	}
 
 	free(tsock->txq.descs);

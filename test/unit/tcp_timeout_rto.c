@@ -82,8 +82,9 @@ static void test_tcp_timeout_rto_timeout(void)
 	}
 
 	/* TODO: speed up it */
+	tcp_cfg.retries = 3;
 	start_ts_us = worker->ts_us;
-	while (tsock->rto_shift < 3) {
+	while (tsock->rto_shift < tcp_cfg.retries) {
 		pkt = NULL;
 		assert(ut_tcp_output(&pkt, 1) <= 1); {
 			assert((uint32_t)(tsock->snd_nxt - tsock->snd_una) == sizeof(buf));
@@ -96,7 +97,12 @@ static void test_tcp_timeout_rto_timeout(void)
 		}
 	}
 
-	ut_close(tsock, CLOSE_TYPE_4WAY);
+	ut_close(tsock, CLOSE_TYPE_CLOSE_DIRECTLY);
+	/*
+	 * make sure nr_write_mbuf is updated correctly
+	 * after sock txq reclaim.
+	 */
+	assert(worker->nr_write_mbuf == 0);
 }
 
 /*
