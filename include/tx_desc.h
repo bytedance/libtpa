@@ -39,12 +39,14 @@ struct tx_desc {
 	void *pkt;
 } __attribute__((__aligned__(64)));
 
-#define tx_desc_done(desc, pool)		do {		\
-	if ((desc)->flags & TX_DESC_FLAG_MEM_FROM_MBUF)		\
+#define tx_desc_done(desc, worker)		do {		\
+	if ((desc)->flags & TX_DESC_FLAG_MEM_FROM_MBUF) {	\
 		packet_free(desc->pkt);				\
+		worker->nr_write_mbuf -= 1;			\
+	}							\
 	if ((desc)->write_done)					\
 		desc->write_done(desc->base, desc->param);	\
-	tx_desc_free(pool, desc);				\
+	tx_desc_free(worker->tx_desc_pool, desc);		\
 } while (0)
 
 

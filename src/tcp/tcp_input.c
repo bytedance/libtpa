@@ -754,11 +754,8 @@ static inline int ack_sent_data(struct tpa_worker *worker, struct tcp_sock *tsoc
 			tsock_write_latency_update(tsock, desc, now);
 		}
 
-		if (desc->flags & TX_DESC_FLAG_MEM_FROM_MBUF)
-			worker->nr_write_mbuf -= 1;
-
 		nr_acked_pkt += 1;
-		tx_desc_done(desc, worker->tx_desc_pool);
+		tx_desc_done(desc, worker);
 	} while (acked_len > 0);
 
 	/*
