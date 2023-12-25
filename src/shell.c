@@ -194,7 +194,7 @@ static void *shell_cmd_process(struct ctrl_event *event)
 	return NULL;
 }
 
-void shell_exec_postinit_cmd(void)
+static void shell_exec_postinit_cmd(void)
 {
 	static struct shell_buf cmd_buf;
 	static struct shell_buf reply_buf;
@@ -257,6 +257,13 @@ int shell_init(void)
 		return -1;
 
 	shell_register_cmd(&echo);
+
+	return 0;
+}
+
+int shell_start(void)
+{
+	shell_exec_postinit_cmd();
 
 	ctrl_event_create(shell_fd, shell_cmd_process, NULL, "tpa-shell");
 
