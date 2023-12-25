@@ -25,7 +25,7 @@ LIBS += $(DPDK_LD_PATH)/librte_ring.a
 LIBS += $(DPDK_LD_PATH)/librte_hash.a
 LIBS += $(DPDK_LD_PATH)/librte_rcu.a
 
-ifneq ($(filter v20.11% v22.11%, $(DPDK_VERSION)),)
+ifneq ($(wildcard $(DPDK_LD_PATH)/librte_telemetry.a),)
 LIBS += $(DPDK_LD_PATH)/librte_telemetry.a
 endif
 
