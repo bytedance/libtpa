@@ -13,3 +13,11 @@ should not be on a line by itself. For example:
 static char *function(int a1, int a2, float fl, int a4)
 {
 ```
+
+# About the next Branch
+
+The development of libtpa normally lands to the next branch first. You
+should make patches based on this branch for contribution.
+
+That also means the next branch is meant to be unstable. Rebases may even
+happen frequently there.
