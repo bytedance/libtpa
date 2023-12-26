@@ -79,6 +79,8 @@ static void test_tcp_seq(void)
 	do_test_tcp_seq(tsock, tsock->rcv_nxt - len + 1, len, SEQ_GOOD);
 	do_test_tcp_seq(tsock, tsock->rcv_nxt + wnd - 1, len, SEQ_GOOD);
 	do_test_tcp_seq(tsock, tsock->rcv_nxt + wnd,     len, SEQ_BAD);
+
+	ut_close(tsock, CLOSE_TYPE_RESET);
 }
 
 int main(int argc, char **argv)
