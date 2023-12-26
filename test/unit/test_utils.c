@@ -1304,6 +1304,10 @@ void ut_exit(void)
 		rte_atomic32_read(&nr_malloc));
 	assert(rte_atomic32_read(&nr_malloc) == 0);
 	assert(rss_after - ut_rss_before_testing < 100);
+
+	assert(worker->nr_ooo_mbuf == 0);
+	assert(worker->nr_write_mbuf == 0);
+	assert(worker->nr_in_process_mbuf == 0);
 }
 
 static void ut_dev_port_init(void)
