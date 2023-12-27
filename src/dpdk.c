@@ -25,6 +25,7 @@
 #include "packet.h"
 #include "dev.h"
 #include "dpdk_compat.h"
+#include "xdp_ctrl.h"
 
 #define RX_OFFLOAD	(DEV_RX_OFFLOAD_IPV4_CKSUM	|\
 			 DEV_RX_OFFLOAD_TCP_CKSUM)
@@ -765,6 +766,79 @@ static void dpdk_args_dump(struct dpdk_args *args)
 	LOG("dpdk args: %s", buf);
 }
 
+static int parse_key_value(const char *str, const char *key, char *val, int val_len)
+{
+	char *p;
+	char *val_ptr;
+	int len = 0;
+
+	p = strstr(str, key);
+	if (!p)
+		return -1;
+
+	p = strstr(p, "=");
+	if (!p)
+		return -1;
+
+	val_ptr = p + 1;
+	p = val_ptr;
+	while (*p != '\0' && *p != ',' &&
+	       *p != '\t' && *p != ' ' &&
+	       *p != '\n') {
+		p += 1;
+		len++;
+	}
+
+	if (len > (val_len - 1))
+		return -1;
+
+	strncpy(val, val_ptr, len);
+	val[len] = '\0';
+
+	return 0;
+}
+
+static void detect_xdp_prog(void)
+{
+	int prog_id;
+
+	prog_id = xdp_prog_id_query(dev.name);
+	if (prog_id <= 0)
+		return;
+
+	if (xdp_prog_detach(dev.name) < 0)
+		fprintf(stderr, "dev %s has been attached xdp prog %d, "
+				"you can use \"ip link set dev %s xdp off\" to detach it\n",
+				dev.name, prog_id, dev.name);
+}
+
+static inline int xdp_precheck(void)
+{
+	char extra_args[PATH_MAX];
+	char val[128];
+	char *p;
+
+	tpa_snprintf(extra_args, sizeof(extra_args), "%s", dpdk_cfg.extra_args);
+
+	p = strstr(extra_args, "net_af_xdp");
+	if (!p)
+		return 0;
+
+	if (parse_key_value(p, "iface", val, sizeof(val)) < 0) {
+		LOG_ERR("failed to parse iface on dpdk extra args");
+		return -1;
+	}
+
+	if (strcmp(dev.name, val) != 0) {
+		LOG_ERR("iface %s and dev name %s do not match", val, dev.name);
+		return -1;
+	}
+
+	detect_xdp_prog();
+
+	return 0;
+}
+
 static int parse_dpdk_args(struct dpdk_args *args)
 {
 	static char file_prefix[PATH_MAX];
@@ -841,6 +915,11 @@ void dpdk_init(int nr_queue)
 
 	cfg_spec_register(dpdk_cfg_specs, ARRAY_SIZE(dpdk_cfg_specs));
 	cfg_section_parse("dpdk");
+
+#ifdef WITH_XDP
+	if (xdp_precheck() < 0)
+		rte_panic("failed to pass xdp precheck");
+#endif
 
 	eal_init();
 	mbuf_mempool_init();

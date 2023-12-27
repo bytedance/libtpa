@@ -109,7 +109,8 @@ int main(int argc, char **argv)
 		sock_termination();
 		sock_archive();
 	#ifdef WITH_XDP
-		xdp_prog_detach(tpad.eth_dev);
+		if (xdp_prog_id_query(tpad.eth_dev) > 0)
+			xdp_prog_detach(tpad.eth_dev);
 	#endif
 	}
 

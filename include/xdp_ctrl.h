@@ -75,6 +75,7 @@ static inline int xdp_flow_destroy(uint16_t port_id, struct rte_flow *flow, stru
 }
 #endif /* WITH_XDP */
 
-void xdp_prog_detach(const char *dev_name);
+int xdp_prog_id_query(const char *dev_name);
+int xdp_prog_detach(const char *dev_name);
 
 #endif

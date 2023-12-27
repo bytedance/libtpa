@@ -110,7 +110,7 @@ static int xdp_prog_maps_init(struct xdp_prog *prog, int nr_maps)
 	return 0;
 }
 
-static int xdp_prog_init(void)
+static int xdp_prog_query(const char *dev_name, struct xdp_prog *prog)
 {
 	struct bpf_prog_info info = {};
 	uint32_t len;
@@ -119,9 +119,9 @@ static int xdp_prog_init(void)
 	int fd;
 	int err;
 
-	ifindex = if_nametoindex(dev.name);
+	ifindex = if_nametoindex(dev_name);
 	if (ifindex == 0) {
-		LOG_ERR("failed to get ifindex of %s: %s", dev.name, strerror(errno));
+		LOG_ERR("failed to get ifindex of %s: %s", dev_name, strerror(errno));
 		return -1;
 	}
 
@@ -143,13 +143,21 @@ static int xdp_prog_init(void)
 		return -1;
 	}
 
-	xdp_prog.fd = fd;
-	xdp_prog.id = prog_id;
-	xdp_prog.ifindex = ifindex;
-	xdp_prog.info = info;
-	strncpy(xdp_prog.name, info.name, sizeof(xdp_prog.name));
+	prog->fd = fd;
+	prog->id = prog_id;
+	prog->ifindex = ifindex;
+	prog->info = info;
+	snprintf(prog->name, sizeof(prog->name), "%s", info.name);
 
-	if (xdp_prog_maps_init(&xdp_prog, info.nr_map_ids) < 0)
+	return 0;
+}
+
+static int xdp_prog_init(void)
+{
+	if (xdp_prog_query(dev.name, &xdp_prog) < 0)
+		return -1;
+
+	if (xdp_prog_maps_init(&xdp_prog, xdp_prog.info.nr_map_ids) < 0)
 		return -1;
 
 	return 0;
@@ -457,20 +465,61 @@ static const struct shell_cmd xdp_cmd = {
 	.handler = cmd_xdp,
 };
 
-void xdp_prog_detach(const char *dev_name)
+static uint32_t ifindex_find(const char *dev_name)
 {
 	uint32_t ifindex;
-	int err;
 
 	ifindex = if_nametoindex(dev_name);
 	if (ifindex == 0) {
 		LOG_ERR("failed to get ifindex of %s: %s", dev_name, strerror(errno));
-		return;
+		return 0;
 	}
 
-	err = bpf_xdp_detach(ifindex, XDP_FLAGS_DRV_MODE, NULL);
+	return ifindex;
+}
+
+int xdp_prog_id_query(const char *dev_name)
+{
+	uint32_t ifindex;
+	uint32_t prog_id;
+	int err;
+
+	ifindex = ifindex_find(dev_name);
+	if (ifindex == 0)
+		return -1;
+
+	err = bpf_xdp_query_id(ifindex, XDP_FLAGS_DRV_MODE, &prog_id);
 	if (err) {
-		LOG_ERR("failed to detach xdp prog on dev %u:%s: %s",
-			ifindex, dev_name, strerror(errno));
+		LOG_ERR("failed to query xdp prog id for ifindex %u", ifindex);
+		return -1;
 	}
+
+	return prog_id;
+}
+
+#define XDP_PROG_NAME_PREFIX 	"tpaxdp"
+
+int xdp_prog_detach(const char *dev_name)
+{
+	struct xdp_prog prog;
+	uint32_t ifindex;
+	int err;
+
+	if (xdp_prog_query(dev_name, &prog) < 0)
+		return -1;
+
+	if (strncmp(prog.name, XDP_PROG_NAME_PREFIX, strlen(XDP_PROG_NAME_PREFIX)) != 0)
+		return -1;
+
+	ifindex = ifindex_find(dev_name);
+	if (ifindex == 0)
+		return -1;
+
+	err = bpf_xdp_detach(ifindex, XDP_FLAGS_DRV_MODE, NULL);
+	if (err)
+		return -1;
+
+	LOG("XDP prog on %s:%u has been detached", dev_name, ifindex);
+
+	return 0;
 }

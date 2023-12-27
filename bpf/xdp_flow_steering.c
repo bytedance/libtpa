@@ -150,7 +150,7 @@ static __always_inline int xsks_redirect(__u32 idx)
 }
 
 SEC("xdp")
-int do_flow_steering(struct xdp_md *ctx)
+int tpaxdp_flow_steering(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data = (void *)(long)ctx->data;
