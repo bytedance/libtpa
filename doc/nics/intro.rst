@@ -14,12 +14,8 @@ kernel networking stack, Libtpa requires NIC hardware feature called
 Most modern NICs have flow bifurcation support with the help of SR-IOV.
 But many require some internal DPDK/Linux patches (or even firmwares)
 to satisfy the Libtpa needs.
-
 On the other hand, Mellanox NIC has native flow bifurcation support
-that doesn't require SR-IOV. More importantly, it doesn't require any
-internal stuff. Libtpa works well with Mellanox NIC just with the
-upstream DPDK.
+that doesn't require SR-IOV.
 
-Therefore, Libtpa currently only supports Mellanox NIC.
-And you can follow :ref:`this page<nic_mlnx>` for the guide on how to
-build Libtpa with Mellanox NICs.
+This document lists the NICs that Libtpa currently supports, with some
+extra information you may need to set it up correctly for enabling Libtpa.

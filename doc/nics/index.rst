@@ -11,3 +11,4 @@ Libtpa NIC Guide
 
     intro
     mlnx
+    e810

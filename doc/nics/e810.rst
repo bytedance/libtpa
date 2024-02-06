@@ -1,0 +1,24 @@
+..  SPDX-License-Identifier: BSD-3-Clause
+    Copyright (c) 2024, ByteDance Ltd. and/or its Affiliates
+    Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
+
+Intel E810 Series
+=================
+
+To support the hardware flow bifurcation feature on the Intel E810 series, you
+need to use out-of-tree Linux kernel drivers and firmwares.
+You can find more information, including download links and recommended versions,
+in the `DPDK Intel ICE driver guide <https://doc.dpdk.org/guides/nics/ice.html>`_.
+Additionally, you need DPDK version **v22.11 or above**.
+
+**Build and Install Linux Kernel Driver:**
+
+After downloading the appropriate Linux kernel driver, you can build and install
+it using the following commands:
+
+.. code-block:: bash
+
+    make install
+    modinfo ice
+    rmmod ice
+    modprobe ice
