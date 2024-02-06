@@ -17,13 +17,15 @@ application.
 Build Libtpa
 ------------
 
-Install Mellanox OFED
-~~~~~~~~~~~~~~~~~~~~~
+Install NIC Dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-Libtpa currently supports Mellanox NIC only. The Mellanox OFED has to
-be installed.  It can be downloaded from
-`here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_.
-Then run below command to install it::
+Check the :ref:`Libtpa NIC Guide<nic_guide>` page for the detailed
+instructions to install dependencies may be required for your NIC.
+If you happen to have a Mellanox NIC, MLNX OFED is required to be
+installed first, which can be downloaded from
+`here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_
+and installed by::
 
     ./mlnxofedinstall --dpdk --upstream-libs
 
@@ -42,6 +44,7 @@ Build Libtpa
 
 With all setup, you can build libtpa simply by::
 
+    ./configure
     make
     make install
 

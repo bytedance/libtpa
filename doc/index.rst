@@ -13,3 +13,4 @@ Libtpa Documentation
    prog_guide
    internals
    redis
+   nics/index

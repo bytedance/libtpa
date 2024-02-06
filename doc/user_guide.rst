@@ -1,5 +1,5 @@
 ..  SPDX-License-Identifier: BSD-3-Clause
-    Copyright (c) 2021-2023, ByteDance Ltd. and/or its Affiliates
+    Copyright (c) 2021-2024, ByteDance Ltd. and/or its Affiliates
     Author: Yuanhan Liu <liuyuanhan.131@bytedance.com>
 
 Libtpa User Guide
@@ -51,42 +51,18 @@ There is a huge advantage about that. If libtpa crashes, except the
 application accelerated by libtpa is affected, none other workloads
 would be affected.
 
-Having said that, it requires some special support from NIC. Section
-:ref:`Requirements<requirements>` gives a bit more information about
-that.
-
-.. _requirements:
-
-Requirements
-------------
-
-Due to the novel design described above (to just accelerate some specific
-TCP connections), libtpa requires
-`flow bifurcation <https://doc.dpdk.org/guides/howto/flow_bifurcation.html>`_
-support from NIC.
-
-Most NICs have flow bifurcation support with the help of SR-IOV.
-But they require some internal DPDK/Linux patches (or even firmwares)
-to satisfy the libtpa needs.
-
-On the other hand, Mellanox NIC has native flow bifurcation support
-that doesn't require SR-IOV. More importantly, it doesn't require any
-internal stuff. Libtpa works well with Mellanox NIC just with the
-upstream DPDK.
-
-Therefore, libtpa currently only supports Mellanox NIC.
+Having said that, it requires some special support from NIC, which can
+be checked on :ref:`this page <nic_guide>`.
 
 Build Libtpa
 ------------
 
-**Install Mellanox OFED:**
+Libtpa relies heavily on the hardware flow bifurcation feature.
+Each NIC may come with different requirements to make such feature work,
+say installing some customized drivers.
 
-Libtpa currently supports Mellanox NIC only. The Mellanox OFED has to
-be installed.  It can be downloaded from
-`here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_.
-Then run below command to install it::
-
-    ./mlnxofedinstall --dpdk --upstream-libs
+Check the :ref:`Libtpa NIC Guide<nic_guide>` page first and make sure you
+have the NIC environment setup correctly before building Libtpa.
 
 **Install Dependencies:**
 

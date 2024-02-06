@@ -331,7 +331,7 @@ disable it unless you know what you are doing.
 Offload
 -------
 
-As stated in the :ref:`requirements <requirements>` section, libtpa
+As stated in the :ref:`Libtpa NIC Guide <nic_guide>` documentation, libtpa
 leverages the flow bifurcation to steer the packets of interest to itself.
 It's the rte_flow interface doing the job under the hood.
 
