@@ -20,39 +20,29 @@ Libtpa has more than 200 tests. Together with the :ref:`testing arguments
 matrix <matrix_shell>`, it can result in a big variety of test cases.
 Therefore, most of the bugs are captured before deployment.
 
+Coexisting with the Host Stack
+------------------------------
+
+What distinguishes Libtpa from many other userspace TCP stacks is its
+ability to coexist natively with the Linux kernel networking stack,
+facilitated by a mechanism called :ref:`flow bifurcation<nic_guide>`.
+Libtpa just takes control of the specific TCP connections needed to
+be accelerated.
+Taking Redis as an example, if redis is accelerated by Libtpa, then
+all TCP connections belonging to Redis will go to Libtpa.
+All other connections (TCP or none TCP, such as UDP) would go to
+the Linux kernel networking stack instead.
+
+There is a huge advantage about that. If Libtpa crashes, except the
+application accelerated by Libtpa is affected, none other workloads
+would be affected.
+
 .. caution::
 
    Although Libtpa has been tested heavily inside Bytedance **data center**,
    it's still recommended to run as much testing as you can before deployment,
    for Libtpa is still under active development and it's just v1.0-**rc0**
    being released. Tons of changes have been made since the last stable release.
-
-Embedded TCP Stack
-~~~~~~~~~~~~~~~~~~
-
-There are two things that might be kind of special about Libtpa.
-
-The first one is that Libtpa is an embedded TCP stack implementation that
-supports run-to-completion mode only. It creates no datapath thread
-by itself. Instead, it's embedded in the application thread.
-
-Acceleration for Specific TCP Connections
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The other special thing about Libtpa is that it's not a standalone
-TCP/IP stack implementation. Instead, it lives together with the host
-TCP/IP stack: Libtpa just takes control of the specific TCP connections
-needed to be accelerated. Taking redis as an example, if redis is
-accelerated by Libtpa, then all TCP connections belonging to redis will
-go to Libtpa.  All other connections (TCP or none TCP, such as UDP)
-go to where it belongs: the host stack.
-
-There is a huge advantage about that. If Libtpa crashes, except the
-application accelerated by Libtpa is affected, none other workloads
-would be affected.
-
-Having said that, it requires some special support from NIC, which can
-be checked on :ref:`this page <nic_guide>`.
 
 Build Libtpa
 ------------

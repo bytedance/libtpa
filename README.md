@@ -10,32 +10,26 @@ Libtpa has more than 200 tests. Together with the testing arguments
 matrix, it can result in a big variety of test cases. Therefore,
 most of the bugs are captured before deployment.
 
-:warning: Although Libtpa has been tested heavily inside Bytedance **data center**,
-it's still recommended to run as much testing as you can before deployment,
-for Libtpa is still under active development and it's just v1.0-**rc0**
-being released. Tons of changes have been made since the last stable release.
+# Coexisting with the Host Stack
 
-# Embedded TCP Stack
-
-There are two things that might be kind of special about Libtpa.
-
-The first one is that Libtpa is an embedded TCP stack implementation that
-supports run-to-completion mode only. It creates no datapath thread
-by itself. Instead, it's embedded in the application thread.
-
-# Acceleration for Specific TCP Connections
-
-The other special thing about Libtpa is that it's not a standalone
-TCP/IP stack implementation. Instead, it lives together with the host
-TCP/IP stack: Libtpa just takes control of the specific TCP connections
-needed to be accelerated. Taking redis as an example, if redis is
-accelerated by Libtpa, then all TCP connections belonging to redis will
-go to Libtpa.  All other connections (TCP or none TCP, such as UDP)
-go to where it belongs: the host stack.
+What distinguishes Libtpa from many other userspace TCP stacks is its
+ability to coexist natively with the Linux kernel networking stack,
+facilitated by a mechanism called [flow bifurcation](doc/nics/index.rst).
+Libtpa just takes control of the specific TCP connections needed to
+be accelerated.
+Taking Redis as an example, if redis is accelerated by Libtpa, then
+all TCP connections belonging to Redis will go to Libtpa.
+All other connections (TCP or none TCP, such as UDP) would go to
+the Linux kernel networking stack instead.
 
 There is a huge advantage about that. If Libtpa crashes, except the
 application accelerated by Libtpa is affected, none other workloads
 would be affected.
+
+:warning: Although Libtpa has been tested heavily inside Bytedance **data center**,
+it's still recommended to run as much testing as you can before deployment,
+for Libtpa is still under active development and it's just v1.0-**rc0**
+being released. Tons of changes have been made since the last stable release.
 
 # What's Next
 
