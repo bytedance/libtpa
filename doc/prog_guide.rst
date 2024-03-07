@@ -20,8 +20,8 @@ This documentation provides detailed descriptions on those APIs.
 Architecture Overview
 ---------------------
 
-Before heading to the libtpa API descriptions, it's necessary to give
-an overview guide about the libtpa architecture.
+Before heading to the Libtpa API descriptions, it's necessary to give
+an overview guide about the Libtpa architecture.
 
 **shared-nothing model**
 
@@ -45,7 +45,7 @@ As described below in the worker API section, the app has to keep calling
 .. note::
 
    That is an intruder. It basically means your application has to be
-   reshaped to the run to completion model to use libtpa. We may introduce
+   reshaped to the run to completion model to use Libtpa. We may introduce
    other models in future, to avoid such intrudes that have to be made to
    your applications.
 
@@ -260,14 +260,14 @@ though.
 
 Where,
 
-* ``tpa_iovec`` is a libtpa customized iovec struct, with few fields
+* ``tpa_iovec`` is a Libtpa customized iovec struct, with few fields
   extended mainly for zero copy implementation.
 
   The new fields are:
 
    - ``iov_phys`` specifies the starting physical address of the iov.
 
-   - ``iov_read/write_done`` is a callback the app/libtpa should invoke
+   - ``iov_read/write_done`` is a callback the app/Libtpa should invoke
      when the corresponding iov is read/written, respectively. It will
      be further explained.
 
@@ -275,14 +275,14 @@ Where,
 
 Note that although this function just looks like the ``readv`` system
 call, it has a huge semantic difference: all fields in this struct
-are filled by libtpa (instead of by the APP like the ``readv`` system
+are filled by Libtpa (instead of by the APP like the ``readv`` system
 call). This is for implementing the zero copy read, and the justice
-is simple: only libtpa knows the data buffer address and size. Both
+is simple: only Libtpa knows the data buffer address and size. Both
 of them are unpredictable for the APP at the time this API gets invoked.
 
 Thus, when the APP has done the processing of the read iov, it should
 invoke the ``iov_read_done`` callback to reclaim the memory allocated by
-libtpa. Here is an example:
+Libtpa. Here is an example:
 
 .. code-block:: c
    :caption: tpa_zreadv example
@@ -328,7 +328,7 @@ except three more fields need to be filled by the APP:
 * ``iov_phys``: this is needed for NIC to do DMA, therefore zero copy.
 
 * ``iov_write_done``: when the data is completely transferred (when the
-  TCP ACK is received), libtpa will invoke this callback to let the APP
+  TCP ACK is received), Libtpa will invoke this callback to let the APP
   be aware of it(to free the buffer, etc).
 
 * ``iov_param``: an extra param filled by APP and will be echoed back
@@ -339,8 +339,8 @@ except three more fields need to be filled by the APP:
    The ``iov_phys`` is not needed for Mellanox NIC. Instead, it requires
    the corresponding memory region to be :ref:`registered <extmem_reg>`.
 
-   When ``iov_phys`` is set to 0, there is a special meaning in libtpa.
-   It means the zero copy write is disabled, and libtpa will fallback
+   When ``iov_phys`` is set to 0, there is a special meaning in Libtpa.
+   It means the zero copy write is disabled, and Libtpa will fallback
    to the non-zero copy version.
 
    Since Mellanox doesn't really care about the physical address and
@@ -403,8 +403,8 @@ per datapath thread. The number of worker is set by below function:
 
     int tpa_init(int nr_worker);
 
-This function also initializes the whole libtpa system, including the DPDK
-initialization. It should be invoked first before all other libtpa functions
+This function also initializes the whole Libtpa system, including the DPDK
+initialization. It should be invoked first before all other Libtpa functions
 get invoked.
 
 Then there is a per-worker initialization function:
@@ -423,7 +423,7 @@ A worker gets executed every time below function get invoked:
 
     void tpa_worker_run(struct tpa_worker *worker);
 
-It is the core of the libtpa, which basically does three things:
+It is the core of the Libtpa, which basically does three things:
 
 - ``tcp input``: receives packets from NIC, feeds them to the TCP stack
   (decaping the net headers, finding the right sock, etc) and then delivers
@@ -451,11 +451,11 @@ are quite different in some ways.
     int tpa_event_ctrl(int sid, int op, struct tpa_event *event);
     int tpa_event_poll(struct tpa_worker *worker, struct tpa_event *events, int max);
 
-As you see, there is no ``epoll_create`` equivalent in libtpa. The
-reason behind it is, as stated above, that every connection in libtpa
+As you see, there is no ``epoll_create`` equivalent in Libtpa. The
+reason behind it is, as stated above, that every connection in Libtpa
 is bound to a specific worker. Thus, the APP only has to register or
 remove some events to a specific connection with the API ``tpa_event_ctrl``,
-then libtpa will find the correct worker so that a later call of
+then Libtpa will find the correct worker so that a later call of
 ``tpa_event_poll(worker, ...)`` could catch them.
 
 Misc
@@ -493,7 +493,7 @@ You then can do zero copy write with address within the range [buf, buf + 4096).
 Examples
 --------
 
-Libtpa repo has few `example applications <https://github.com/bytedance/libtpa/tree/main/app>`_.
-Both `swing <https://github.com/bytedance/libtpa/tree/main/app/swing>`_ and
-`techo <https://github.com/bytedance/libtpa/tree/main/app/techo>`_ are good examples
+Libtpa repo has few `example applications <https://github.com/bytedance/Libtpa/tree/main/app>`_.
+Both `swing <https://github.com/bytedance/Libtpa/tree/main/app/swing>`_ and
+`techo <https://github.com/bytedance/Libtpa/tree/main/app/techo>`_ are good examples
 to look at: both are short and simple.

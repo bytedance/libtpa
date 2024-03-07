@@ -194,7 +194,7 @@ static int early_init(void)
 
 	/*
 	 * fork tpad as early as possible so that it inherits as less
-	 * resources as it can from the libtpa APP instance.
+	 * resources as it can from the Libtpa APP instance.
 	 */
 	tpad_init();
 

@@ -51,7 +51,7 @@ static int wait_for_tpa_app(int fd)
 		return -1;
 
 	/*
-	 * If this read returns, it means the parent process (the libtpa
+	 * If this read returns, it means the parent process (the Libtpa
 	 * APP) is dead; we should do some house-keeping works then.
 	 *
 	 * Well, we are cautious here: only treat it as dead when ECONNRESET
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
 
 	LOG("tpad %s %d starts", tpad.name, getpid());
 
-	/* we are the libtpa APP guarder; do not die easily */
+	/* we are the Libtpa APP guarder; do not die easily */
 	signal(SIGINT, ignore_sig);
 	signal(SIGTERM, ignore_sig);
 

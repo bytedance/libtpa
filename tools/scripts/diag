@@ -46,7 +46,7 @@ check_version()
 {
 	capture_stats 'tpa -v'
 
-	[ "$(cat_stats | awk '{print $2}')" = "-" ] && log_error "no live libtpa instance detected"
+	[ "$(cat_stats | awk '{print $2}')" = "-" ] && log_error "no live Libtpa instance detected"
 
 	store_stats
 }

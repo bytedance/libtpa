@@ -89,7 +89,7 @@ set_tpa_id()
 	if [ $nr_live -eq 1 ]; then
 		export TPA_ID=${live_instances[0]}
 	elif [ $nr_live -gt 1 ]; then
-		echo ":: error: multiple live libtpa instance detected: [${live_instances[*]}]" 1>&2
+		echo ":: error: multiple live Libtpa instance detected: [${live_instances[*]}]" 1>&2
 		echo ":: TPA_ID has to be set to one of above value to execute above tpa cmd"   1>&2
 		echo ":: example: TPA_ID=${live_instances[0]} tpa $cmd ..."
 		exit 1

@@ -22,33 +22,33 @@ Therefore, most of the bugs are captured before deployment.
 
 .. caution::
 
-   Although libtpa has been tested heavily inside Bytedance **data center**,
+   Although Libtpa has been tested heavily inside Bytedance **data center**,
    it's still recommended to run as much testing as you can before deployment,
-   for libtpa is still under active development and it's just v1.0-**rc0**
+   for Libtpa is still under active development and it's just v1.0-**rc0**
    being released. Tons of changes have been made since the last stable release.
 
 Embedded TCP Stack
 ~~~~~~~~~~~~~~~~~~
 
-There are two things that might be kind of special about libtpa.
+There are two things that might be kind of special about Libtpa.
 
-The first one is that libtpa is an embedded TCP stack implementation that
+The first one is that Libtpa is an embedded TCP stack implementation that
 supports run-to-completion mode only. It creates no datapath thread
 by itself. Instead, it's embedded in the application thread.
 
 Acceleration for Specific TCP Connections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The other special thing about libtpa is that it's not a standalone
+The other special thing about Libtpa is that it's not a standalone
 TCP/IP stack implementation. Instead, it lives together with the host
-TCP/IP stack: libtpa just takes control of the specific TCP connections
+TCP/IP stack: Libtpa just takes control of the specific TCP connections
 needed to be accelerated. Taking redis as an example, if redis is
-accelerated by libtpa, then all TCP connections belonging to redis will
-go to libtpa.  All other connections (TCP or none TCP, such as UDP)
+accelerated by Libtpa, then all TCP connections belonging to redis will
+go to Libtpa.  All other connections (TCP or none TCP, such as UDP)
 go to where it belongs: the host stack.
 
-There is a huge advantage about that. If libtpa crashes, except the
-application accelerated by libtpa is affected, none other workloads
+There is a huge advantage about that. If Libtpa crashes, except the
+application accelerated by Libtpa is affected, none other workloads
 would be affected.
 
 Having said that, it requires some special support from NIC, which can
@@ -67,7 +67,7 @@ have the NIC environment setup correctly before building Libtpa.
 **Install Dependencies:**
 
 For debian system, you can simply run following command at the
-libtpa source dir to install the dependencies::
+Libtpa source dir to install the dependencies::
 
     ./buildtools/install-dep.deb.sh
 
@@ -79,7 +79,7 @@ Or below if a complain about low meson version is met afterwards:
 
 **Build Libtpa**
 
-With all setup, you can build libtpa simply by::
+With all setup, you can build Libtpa simply by::
 
     ./configure
     make
@@ -114,9 +114,9 @@ With all setup, you can build libtpa simply by::
 Run Libtpa Applications
 -----------------------
 
-Before running a libtpa application, hugepages need to be allocated first.
+Before running a Libtpa application, hugepages need to be allocated first.
 Here is a `guide from DPDK <https://doc.dpdk.org/guides/linux_gsg/sys_reqs.html#use-of-hugepages-in-the-linux-environment>`_.
-After that, you are ready to run libtpa applications. And there are
+After that, you are ready to run Libtpa applications. And there are
 two ways.
 
 **Run directly with the correct configs**
@@ -146,11 +146,11 @@ two ways.
     > < SSH-2.0-OpenSSH_9.0
 
 If you see something similar like above, it means you are all set up and
-ready to write and run your own libtpa applications.
+ready to write and run your own Libtpa applications.
 
-**Run with the libtpa wrapper**
+**Run with the Libtpa wrapper**
 
-There is a more convenient way to do this: run it with the libtpa wrapper.
+There is a more convenient way to do this: run it with the Libtpa wrapper.
 
 .. code-block:: text
 
@@ -182,14 +182,14 @@ Libtpa Builtin Applications
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Libtpa ships few applications, for testing and debug purposes. It's also
-a good source for learning how to program with libtpa customized APIs.
+a good source for learning how to program with Libtpa customized APIs.
 You can check :ref:`here <prog_guide>` for a detailed programming guide.
 
 **swing**
 
 It's a debug tool quite similar to telnet. It's a handy tool to check
-whether libtpa (or the networking) works or not. Meanwhile, it's also
-a short example on how to write a libtpa client program. Above section
+whether Libtpa (or the networking) works or not. Meanwhile, it's also
+a short example on how to write a Libtpa client program. Above section
 already presents some examples.
 
 .. code-block:: text
@@ -204,9 +204,9 @@ already presents some examples.
 **techo**
 
 It's another debug tool, which simply echos back what it receives from the
-client. It's normally used together with swing, to check the libtpa TCP
+client. It's normally used together with swing, to check the Libtpa TCP
 connection. Like swing, it can also serve as an example on how to write
-a libtpa server program. The usage is simple: just provide the port to
+a Libtpa server program. The usage is simple: just provide the port to
 listen on.
 
 .. code-block:: text
@@ -235,7 +235,7 @@ can check :ref:`loopback mode <loopback_mode>` section for examples.
           tperf -s [options]
           tperf -t test [options]
 
-   Tperf, a libtpa performance benchmark.
+   Tperf, a Libtpa performance benchmark.
 
    Client options:
      -c server         run in client mode (the default mode) and specifies the server
@@ -269,9 +269,9 @@ can check :ref:`loopback mode <loopback_mode>` section for examples.
 Run Multiple Libtpa Instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can run as many libtpa instances as the hardware resources permit.
+You can run as many Libtpa instances as the hardware resources permit.
 Libtpa uses ``TPA_ID`` as the unique identifier of a specific instance.
-This ID could be generated by libtpa at runtime, with a pattern of
+This ID could be generated by Libtpa at runtime, with a pattern of
 "program_name[$num_postfix]". Taking swing as an example, if no swing instance
 has been running, the ID then will be "swing". If one more swing
 instance starts, it then will be "swing1", and so on.
@@ -280,7 +280,7 @@ Having said that, it's still recommended to set the TPA_ID by your own::
 
     TPA_ID=client tpa run swing ....
 
-That is because most of libtpa tools require the TPA_ID. Therefore,
+That is because most of Libtpa tools require the TPA_ID. Therefore,
 specifying the TPA_ID by yourself gives you a bit more control, especially
 when you want to run multiple instances of the same application.
 
@@ -293,7 +293,7 @@ Libtpa supports loopback mode differently compared with the ``lo`` interface.
 Again, it requires physical loopback support from the NIC. That said, the
 packet will actually go into the NIC and then go back to the same host again.
 
-Below is an example demonstrating that. We run two libtpa applications on
+Below is an example demonstrating that. We run two Libtpa applications on
 the same host, one is the tperf server, and the other one is the tperf client.
 
 .. code-block:: text
@@ -337,16 +337,16 @@ the same host, one is the tperf server, and the other one is the tperf client.
 
 .. note::
 
-    Apparently, libtpa will not be able to connect to the loopback
+    Apparently, Libtpa will not be able to connect to the loopback
     TCP connections if the other end is Linux kernel TCP/IP stack.
     Above works only because both the client and server are running
-    with libtpa.
+    with Libtpa.
 
 Tools
 -----
 
 As a DPDK based userspace stack implementation, it's proud to say
-that libtpa has a rich set of tools.
+that Libtpa has a rich set of tools.
 
 sock list
 ~~~~~~~~~
@@ -384,7 +384,7 @@ are listed below.
 so verbose that it might be very hard to find something useful with
 a glimpse. Instead, you could combine it with a grep command to filter
 out the parts you care most about. For example, below combo shows read
-and write latencies measured by libtpa::
+and write latencies measured by Libtpa::
 
     # tpa sk -v | grep -e sid -e _lat
     sid=0 192.168.1.10:54157 192.168.1.10:4096 worker=0 established
@@ -411,8 +411,8 @@ four stages:
 And there are four similar stages for read operation:
 
 #. receive the packet from NIC
-#. go through the libtpa TCP stack and deliver it to the sock rxq
-#. APP reads the data by the libtpa read API
+#. go through the Libtpa TCP stack and deliver it to the sock rxq
+#. APP reads the data by the Libtpa read API
 #. APP finishes the processing of the data by invoking the corresponding
    iov.iov_read_done callback.
 
@@ -440,8 +440,8 @@ sock trace
 ~~~~~~~~~~
 
 tpa sock-trace (or ``tpa st`` in short) is the most handy (and yet the
-most powerful) tool libtpa provides. The sock trace implementation in
-libtpa is so lightweight that it's enabled by default. Therefore, we
+most powerful) tool Libtpa provides. The sock trace implementation in
+Libtpa is so lightweight that it's enabled by default. Therefore, we
 could always know what's exactly going on under the hoods.
 
 To demonstrates what a trace looks like, let's run the swing first::
@@ -496,9 +496,9 @@ As you can see, we can even get the precise latency from the trace. Note
 that swing is a debug tool and there is a 1ms delay (usleep(1000)) for
 each loop. That's the reason why the above latency looks quite big.
 
-Libtpa does a bit more to make the trace more powerful: libtpa archives
+Libtpa does a bit more to make the trace more powerful: Libtpa archives
 the trace automatically when it gets recovered from something abnormal,
-such as retrans. Besides that, libtpa notes down the recovery time::
+such as retrans. Besides that, Libtpa notes down the recovery time::
 
     # tpa st | grep rto | head
     /var/log/tpa/client/socktrace194   ...  2023-12-04.16:55:00.070575  ... rto-107.447ms
@@ -516,14 +516,14 @@ Then you can run below command to check what exactly happened::
 
     tpa st /var/log/tpa/client/socktrace194
 
-The sock trace is so convenient and powerful that libtpa doesn't even
+The sock trace is so convenient and powerful that Libtpa doesn't even
 have tools like tcpdump.
 
 
 worker stats
 ~~~~~~~~~~~~
 
-``worker`` is the processing unit in libtpa: all TCP packets are processed
+``worker`` is the processing unit in Libtpa: all TCP packets are processed
 there. ``tpa worker`` dumps all the worker status::
 
     # tpa worker
@@ -561,9 +561,9 @@ there. ``tpa worker`` dumps all the worker status::
             SYN_XMIT                        : 28
 
 Most of them are quite self-explanatory. The ``starvation`` metric
-denotes the time runs outside the libtpa worker. Sometimes if
+denotes the time runs outside the Libtpa worker. Sometimes if
 something goes wrong, these metrics might give a hint which part
-(libtpa itself or the application code) is likely wrong.
+(Libtpa itself or the application code) is likely wrong.
 
 mem stats
 ~~~~~~~~~
@@ -680,9 +680,9 @@ There are two ways to do customize before startup:
 
 **Config Options**
 
-All libtpa config options are divided in sections. The runtime libtpa
+All Libtpa config options are divided in sections. The runtime Libtpa
 displays the config options in a slightly different format: section_name.key.
-``tpa cfg list`` lists all the config options libtpa supports::
+``tpa cfg list`` lists all the config options Libtpa supports::
 
     # tpa cfg list
     log.level                2
@@ -745,7 +745,7 @@ disables trace (which is enabled by default)::
     tpa cfg set trace.enale 0
 
 Some options are read-only and can only be set once at startup time,
-such as net related configs (right, libtpa currently doesn't support
+such as net related configs (right, Libtpa currently doesn't support
 changing IP address at runtime). An error will be reported if one tries
 to modify them::
 

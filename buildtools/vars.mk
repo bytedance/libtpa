@@ -18,7 +18,7 @@ OS    = $(shell uname -o)
 
 ifneq ($(MAKECMDGOALS),gtags)
 ifneq ($(OS),GNU/Linux)
-$(error libtpa builds only in GNU/Linux OS)
+$(error Libtpa builds only in GNU/Linux OS)
 endif
 
 ifeq ($(wildcard $(CONFIG_MK)),)

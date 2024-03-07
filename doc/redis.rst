@@ -10,9 +10,9 @@ Redis with Libtpa
 Introduction
 ------------
 
-This page shows how to build and run redis with libtpa acceleration.
+This page shows how to build and run redis with Libtpa acceleration.
 
-In summary, libtpa boosts the redis GET benchmark performance more
+In summary, Libtpa boosts the redis GET benchmark performance more
 than 5 times, from 0.21m rps to 1.14m rps. Meanwhile, the p99 latency
 is greatly decreased, from 0.815ms to 0.159ms.
 

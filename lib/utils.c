@@ -49,7 +49,7 @@ int mkdir_p(const char *path)
  * if the caller uses the return value directly with the following pattern:
  *      len += snprintf(buf + len, sizeof(buf) - len, ....);
  *
- * It's a pattern that libtpa uses a lot. Fixing it by doing an extra
+ * It's a pattern that Libtpa uses a lot. Fixing it by doing an extra
  * return value validation messes the code. Therefore, here we introduce
  * a safe wrapper.
  */

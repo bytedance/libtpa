@@ -77,7 +77,7 @@ $ns2: $veth2 $ip2
 You can enter namespace by:
         ip netns exec \$ns bash
 
-Now, You can enter ./$ns1 or ./$ns2 subdir to execute libtpa apps.
+Now, You can enter ./$ns1 or ./$ns2 subdir to execute Libtpa apps.
 EOF
 }
 

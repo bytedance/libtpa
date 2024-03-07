@@ -11,7 +11,7 @@ Introduction
 Libtpa(Transport Protocol Acceleration) is a DPDK based userspace TCP
 stack implementation.
 
-Below is a quick guide on how to build libtpa and run the first libtpa
+Below is a quick guide on how to build Libtpa and run the first Libtpa
 application.
 
 Build Libtpa
@@ -33,7 +33,7 @@ Install Dependencies
 ~~~~~~~~~~~~~~~~~~~~
 
 For debian system, you can simply run following command at the
-libtpa source dir to install the dependencies:
+Libtpa source dir to install the dependencies:
 
 .. code-block:: text
 
@@ -42,7 +42,7 @@ libtpa source dir to install the dependencies:
 Build Libtpa
 ~~~~~~~~~~~~
 
-With all setup, you can build libtpa simply by::
+With all setup, you can build Libtpa simply by::
 
     ./configure
     make
@@ -51,10 +51,10 @@ With all setup, you can build libtpa simply by::
 Run First Libtpa Application
 ----------------------------
 
-Before running a libtpa application, hugepages need to be allocated first.
+Before running a Libtpa application, hugepages need to be allocated first.
 Here is a `guide from DPDK <https://doc.dpdk.org/guides/linux_gsg/sys_reqs.html#use-of-hugepages-in-the-linux-environment>`_.
 
-Then it's ready to run your first libtpa application: swing,
+Then it's ready to run your first Libtpa application: swing,
 a telnet-like tool, to verify everything is set up correctly.
 
 .. code-block:: text
@@ -73,14 +73,14 @@ a telnet-like tool, to verify everything is set up correctly.
     > < SSH-2.0-OpenSSH_9.0
 
 If you see something similar like above, it means you are all set up and
-ready to write and run your own libtpa applications.
+ready to write and run your own Libtpa applications.
 
 What's Next
 -----------
 
 Libtpa has no POSIX API support so far. You could reference
 :ref:`Libtpa Programming Guide <prog_guide>` on how to program with
-libtpa's customized APIs.
+Libtpa's customized APIs.
 
 Meanwhile, you might want to try :ref:`Redis with Libtpa <redis_libtpa>`
-to get some clues on where libtpa might be applied.
+to get some clues on where Libtpa might be applied.

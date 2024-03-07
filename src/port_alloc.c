@@ -27,7 +27,7 @@ struct port_alloc_ctrl {
 
 	/*
 	 * below specifies the local port range for this instance, while
-	 * PORT_MIN and PORT_MAX specifies the port range for libtpa
+	 * PORT_MIN and PORT_MAX specifies the port range for Libtpa
 	 */
 	uint16_t min;
 	uint16_t max;
@@ -214,7 +214,7 @@ static struct port_block *do_port_block_alloc(struct tpa_worker *worker, uint16_
 	if (size & ~size)
 		return NULL;
 
-	/* do a quick check whether the range is free in this libtpa instance */
+	/* do a quick check whether the range is free in this Libtpa instance */
 	if (!port_range_is_free(start, size))
 		return NULL;
 

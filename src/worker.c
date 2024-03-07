@@ -147,7 +147,7 @@ struct tpa_worker *tpa_worker_init(void)
 	}
 
 	/*
-	 * The typical usage of libtpa doesn't involve DPDK threads.
+	 * The typical usage of Libtpa doesn't involve DPDK threads.
 	 * Therefore, the per thread lcore_id is not set. However we
 	 * need set it correct to enable mbuf cache: that's what
 	 * the following dirty hack for.

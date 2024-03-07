@@ -182,7 +182,7 @@ static inline void dev_port_rxq_recv(uint16_t port_id, uint16_t queue_id)
 
 	/*
 	 * When incast traffic pattern happens and the APP is processing slowly
-	 * (say due to some heavy operations), it's very likely libtpa/DPDK will
+	 * (say due to some heavy operations), it's very likely Libtpa/DPDK will
 	 * not get enough chance to drain the NIC rx queue, therefore, pkt loss
 	 * happens.
 	 *

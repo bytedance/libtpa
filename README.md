@@ -10,31 +10,31 @@ Libtpa has more than 200 tests. Together with the testing arguments
 matrix, it can result in a big variety of test cases. Therefore,
 most of the bugs are captured before deployment.
 
-:warning: Although libtpa has been tested heavily inside Bytedance **data center**,
+:warning: Although Libtpa has been tested heavily inside Bytedance **data center**,
 it's still recommended to run as much testing as you can before deployment,
-for libtpa is still under active development and it's just v1.0-**rc0**
+for Libtpa is still under active development and it's just v1.0-**rc0**
 being released. Tons of changes have been made since the last stable release.
 
 # Embedded TCP Stack
 
-There are two things that might be kind of special about libtpa.
+There are two things that might be kind of special about Libtpa.
 
-The first one is that libtpa is an embedded TCP stack implementation that
+The first one is that Libtpa is an embedded TCP stack implementation that
 supports run-to-completion mode only. It creates no datapath thread
 by itself. Instead, it's embedded in the application thread.
 
 # Acceleration for Specific TCP Connections
 
-The other special thing about libtpa is that it's not a standalone
+The other special thing about Libtpa is that it's not a standalone
 TCP/IP stack implementation. Instead, it lives together with the host
-TCP/IP stack: libtpa just takes control of the specific TCP connections
+TCP/IP stack: Libtpa just takes control of the specific TCP connections
 needed to be accelerated. Taking redis as an example, if redis is
-accelerated by libtpa, then all TCP connections belonging to redis will
-go to libtpa.  All other connections (TCP or none TCP, such as UDP)
+accelerated by Libtpa, then all TCP connections belonging to redis will
+go to Libtpa.  All other connections (TCP or none TCP, such as UDP)
 go to where it belongs: the host stack.
 
-There is a huge advantage about that. If libtpa crashes, except the
-application accelerated by libtpa is affected, none other workloads
+There is a huge advantage about that. If Libtpa crashes, except the
+application accelerated by Libtpa is affected, none other workloads
 would be affected.
 
 # What's Next

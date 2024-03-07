@@ -21,7 +21,7 @@ build()
 	get_repo
 
 	pkg-config --cflags libtpa >/dev/null 2>&1 || {
-		echo "error: you should install libtpa first by 'make install'"
+		echo "error: you should install Libtpa first by 'make install'"
 		exit 1
 	}
 

@@ -14,7 +14,7 @@ prefix=$(pwd)
 libdir=\${prefix}/build
 includedir=\${prefix}/include/api
 
-Name: libtpa
+Name: Libtpa
 Description: Libtpa, a userspace TCP stack implementation
 Version: $TPA_VERSION
 Libs: -L\${libdir} -Wl,--whole-archive -l:libtpa.a -Wl,--no-whole-archive $dpdk_ldflags -lpthread
@@ -26,7 +26,7 @@ prefix=/usr/share/tpa
 libdir=\${prefix}
 includedir=\${prefix}
 
-Name: libtpa
+Name: Libtpa
 Description: Libtpa, a userspace TCP stack implementation
 Version: $TPA_VERSION
 Libs: -L\${libdir} -Wl,--whole-archive -l:libtpa.a -Wl,--no-whole-archive $dpdk_ldflags -lpthread
