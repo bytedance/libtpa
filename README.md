@@ -1,7 +1,7 @@
 Libtpa(Transport Protocol Acceleration) is a DPDK based userspace TCP
 stack implementation.
 
-Libtpa is fast. It boosts the [redis benchmark](doc/redis.rst) performance
+Libtpa is fast. It boosts the [redis benchmark](https://bytedance.github.io/libtpa/redis.html) performance
 more than 5 times, from 0.21m rps to 1.14m rps. Meanwhile, the p99 latency
 is greatly decreased, from 0.815ms to 0.159ms.
 
@@ -14,7 +14,7 @@ most of the bugs are captured before deployment.
 
 What distinguishes Libtpa from many other userspace TCP stacks is its
 ability to coexist natively with the Linux kernel networking stack,
-facilitated by a mechanism called [flow bifurcation](doc/nics/index.rst).
+facilitated by a mechanism called [flow bifurcation](https://bytedance.github.io/libtpa/nics/intro.html).
 Libtpa just takes control of the specific TCP connections needed to
 be accelerated.
 Taking Redis as an example, if redis is accelerated by Libtpa, then
@@ -35,8 +35,8 @@ being released. Tons of changes have been made since the last stable release.
 
 You might want to check below docs for more detailed information:
 
--  [quick start guide](doc/quick_start.rst)
--  [user guide](doc/user_guide.rst)
--  [programming guide](doc/prog_guide.rst)
+-  [quick start guide](https://bytedance.github.io/libtpa/quick_start.html)
+-  [user guide](https://bytedance.github.io/libtpa/user_guide.html)
+-  [programming guide](https://bytedance.github.io/libtpa/prog_guide.html)
 -  [contribution guide](CONTRIBUTING.md)
--  [internals](doc/internals.rst)
+-  [internals](https://bytedance.github.io/libtpa/internals.html)
