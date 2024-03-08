@@ -45,7 +45,7 @@ struct tpa_iovec {
 
 /*
  * Provides extra options for socks going to be created by
- * tpa_connect_to and tpa_connect_to.
+ * tpa_connect_to and tpa_listen_on.
  */
 struct tpa_sock_opts {
 	/*
