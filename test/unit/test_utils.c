@@ -250,7 +250,7 @@ struct packet *ut_make_packet(int is_reply, uint16_t client_port, uint32_t flow_
 		ip  = rte_pktmbuf_mtod_offset(m, struct rte_ipv4_hdr *,  14);
 		tcp = rte_pktmbuf_mtod_offset(m, struct rte_tcp_hdr *,   14 + 20);
 
-		eth->ether_type = RTE_ETHER_TYPE_IPV4;
+		eth->ether_type = htons(RTE_ETHER_TYPE_IPV4);
 		m->packet_type = RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L4_TCP;
 		m->ol_flags |= PKT_RX_IP_CKSUM_GOOD | PKT_RX_L4_CKSUM_GOOD;
 	}
